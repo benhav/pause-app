@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/* App-farger via CSS-variabler (light som default) */
+:root {
+  --app-bg: #ffffff;
+  --bg: var(--app-bg);
+  --text: #171717;
+  --muted: #6b7280;
+
+  --surface: #ffffff;
+  --surface-2: #f5f5f5;
+  --surface-hover: #f0f9ff; /* sky-50-ish */
+  --press: #eff6ff;         /* blue-50-ish */
+
+  --border: #e5e7eb; /* neutral-200 */
+  --ring: #e5e7eb;
+}
+
+/* System dark (brukes når bruker IKKE har valgt manuelt) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --app-bg: #0a0a0a;
+    --bg: var(--app-bg);
+    --text: #ededed;
+    --muted: #9ca3af;
+
+    --surface: #111827;      /* neutral-900-ish */
+    --surface-2: #0f172a;    /* litt dypere */
+    --surface-hover: #111827;
+    --press: #0b1220;
+
+    --border: #1f2937; /* neutral-800-ish */
+    --ring: #1f2937;
+  }
+}
+
+/* Manuell overstyring (viktig!) */
+html.light {
+  --app-bg: #ffffff;
+  --bg: var(--app-bg);
+  --text: #171717;
+  --muted: #6b7280;
+
+  --surface: #ffffff;
+  --surface-2: #f5f5f5;
+  --surface-hover: #f0f9ff;
+  --press: #eff6ff;
+
+  --border: #e5e7eb;
+  --ring: #e5e7eb;
+}
+
+html.dark {
+  --app-bg: #0a0a0a;
+  --bg: var(--app-bg);
+  --text: #ededed;
+  --muted: #9ca3af;
+
+  --surface: #111827;
+  --surface-2: #0f172a;
+  --surface-hover: #111827;
+  --press: #0b1220;
+
+  --border: #1f2937;
+  --ring: #1f2937;
+}
+
+body {
+  background: var(--app-bg);
+  color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Dine animasjoner beholdes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.35s ease-out;
+}
+
+@keyframes dotPulse {
+  0%   { transform: scale(1.00); }
+  31%  { transform: scale(1.25); }
+  47%  { transform: scale(1.25); }
+  78%  { transform: scale(1.00); }
+  100% { transform: scale(1.00); }
+}
+
+@keyframes breatheHold {
+  0%   { transform: scale(0.62); opacity: 0.95; }
+  28%  { transform: scale(1.00); opacity: 1; }
+  40%  { transform: scale(1.00); opacity: 1; }
+  72%  { transform: scale(0.62); opacity: 0.95; }
+  100% { transform: scale(0.62); opacity: 0.95; }
+}
