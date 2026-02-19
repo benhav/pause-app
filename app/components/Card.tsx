@@ -6,7 +6,7 @@ export default function Card({ children }: { children: ReactNode }) {
       className={[
         // Mobile: fullskjerm "sheet"
         "relative w-full min-h-[100svh] rounded-none p-6",
-        "bg-[var(--surface)] text-[var(--text)]",
+        "bg-[var(--card-bg)] border-[color:var(--card-border)]",
 
         // Desktop+: kort-stil
         "sm:min-h-0 sm:rounded-3xl sm:shadow-sm sm:ring-1 sm:ring-[color:var(--ring)]",

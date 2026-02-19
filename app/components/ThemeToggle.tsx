@@ -111,7 +111,7 @@ export default function ThemeToggle() {
 
       <span
         className={[
-          "block h-6 w-6 rounded-full bg-white shadow transition-transform duration-200",
+          "block h-6 w-6 rounded-full bg-[var(--app-bg)] shadow transition-transform duration-200",
           isDark ? "translate-x-[40px]" : "translate-x-0",
         ].join(" ")}
       />

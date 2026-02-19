@@ -11,8 +11,11 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Locale } from "../data/uiText";
 import { UI_TEXT } from "../data/uiText";
-import ThemeToggle from "../components/ThemeToggle";
 import { SoftBreath } from "../lib/softBreath";
+
+import { applySkin, getSavedSkin } from "../lib/skin";
+
+import { useAppPrefs } from "../AppProviders";
 
 const STORAGE_KEY = "pause-locale";
 
@@ -102,7 +105,6 @@ function speak(text: string, locale: Locale) {
 }
 
 export default function BreathingRoomClient() {
-
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -113,7 +115,7 @@ export default function BreathingRoomClient() {
     const [seconds, setSeconds] = useState<number>(DEFAULT_SECONDS);
 
     // Voice / Pro
-    const [isPro, setIsPro] = useState(false);
+    const { proDemo: isPro, setProDemo: setIsPro, isDark } = useAppPrefs();
     const [voiceEnabled, setVoiceEnabled] = useState(false);
 
     // For å kunne “resette” animasjonen (og synce voice 1:1)
@@ -162,6 +164,13 @@ export default function BreathingRoomClient() {
     }, [seconds]);
 
     useEffect(() => setMounted(true), []);
+
+    // Apply saved skin on mount (og bare når vi er mounted)
+    useEffect(() => {
+        if (!mounted) return;
+        const s = getSavedSkin();
+        applySkin(s);
+    }, [mounted]);
 
     // --- Warm up speech synthesis voices ---
     function warmUpVoices() {
@@ -247,7 +256,6 @@ export default function BreathingRoomClient() {
         }
 
         // Synk med keyframes:
-        // 0->28% inn, 28->40% hold, 40->72% ut, resten tilbake/ro
         const inhale = Math.round(seconds * 0.28 * 1000);
         const hold = Math.round(seconds * 0.12 * 1000);
         const cycle = Math.round(seconds * 1000);
@@ -272,7 +280,7 @@ export default function BreathingRoomClient() {
             timersRef.current.push(window.setTimeout(runCycle, cycle));
         };
 
-        // Start syklusen “fra start” (matcher animNonce-restart av sirkelen)
+        // Start syklusen “fra start”
         const start = window.setTimeout(runCycle, 50);
         timersRef.current.push(start);
 
@@ -294,8 +302,7 @@ export default function BreathingRoomClient() {
 
         if (!isPro || !voiceEnabled) return;
 
-        // må være init'et via user gesture (vi gjør det i onClick),
-        // men om den finnes og er klar: schedule nå
+        // om den finnes og er klar: schedule nå
         if (breathRef.current) {
             scheduleSoftBreath();
         }
@@ -357,10 +364,8 @@ export default function BreathingRoomClient() {
                         "flex flex-col",
                     ].join(" ")}
                 >
-                    {/* Top controls (som welcome) */}
+                    {/* Top controls */}
                     <div className="absolute right-3 top-2 flex items-center gap-3">
-                        <ThemeToggle />
-
                         <div className="flex gap-2">
                             <button
                                 type="button"
@@ -400,9 +405,9 @@ export default function BreathingRoomClient() {
                         </div>
                     </div>
 
-                    {/* Layout: top / middle / bottom (sirkelen holder midten) */}
+                    {/* Layout: top / middle / bottom */}
                     <div className="flex-1 grid grid-rows-[clamp(150px,20vh,200px)_1fr_clamp(190px,26vh,260px)]">
-                        {/* TOP (fast høyde => ingen hopp når show/hide) */}
+                        {/* TOP */}
                         <div className="pt-12 text-center">
                             {showElements ? (
                                 <>
@@ -432,17 +437,21 @@ export default function BreathingRoomClient() {
                             )}
                         </div>
 
-                        {/* MIDDLE (sirkelen alltid sentrert) */}
+                        {/* MIDDLE */}
                         <div className="flex items-center justify-center">
                             <div
-                                key={animNonce} // restart animasjon når tempo endres
-                                className="rounded-full bg-sky-200 shadow-sm w-[55vmin] h-[55vmin] max-w-[320px] max-h-[320px] will-change-transform"
-                                style={circleStyle}
+                                key={animNonce}
+                                className="rounded-full w-[55vmin] h-[55vmin] max-w-[320px] max-h-[320px] will-change-transform"
+                                style={{
+                                    ...circleStyle,
+                                    background: "var(--breath-fill)",
+                                    boxShadow: "var(--breath-shadow)",
+                                }}
                                 aria-label={locale === "no" ? "Pusteindikator" : "Breathing indicator"}
                             />
                         </div>
 
-                        {/* BOTTOM (fast høyde => sirkelen flytter seg ikke ved show/hide) */}
+                        {/* BOTTOM */}
                         <div className="flex flex-col items-center justify-start pt-6">
                             {showElements ? (
                                 <div className="w-full max-w-[360px] px-2">
@@ -452,7 +461,7 @@ export default function BreathingRoomClient() {
                                         max={MAX_SECONDS}
                                         value={sliderValue}
                                         onChange={(e) => onSliderChange(Number(e.target.value))}
-                                        className="w-full accent-sky-400"
+                                        className="w-full accent-[color:var(--accent)]"
                                         aria-label={t.speedAria}
                                     />
 
@@ -475,7 +484,7 @@ export default function BreathingRoomClient() {
                                             onClick={async () => {
                                                 if (!isPro) return;
 
-                                                // NEW: ekstra kick i webviews (Messenger etc.)
+                                                // extra kick i webviews
                                                 try {
                                                     const s = window.speechSynthesis;
                                                     s?.getVoices?.();
@@ -502,9 +511,7 @@ export default function BreathingRoomClient() {
                                                 !isPro ? "opacity-50 cursor-not-allowed" : "",
                                             ].join(" ")}
                                         >
-                                            <span aria-hidden="true">
-                                                {voiceEnabled && isPro ? "🔊" : "🔇"}
-                                            </span>
+                                            <span aria-hidden="true">{voiceEnabled && isPro ? "🔊" : "🔇"}</span>
                                             <span>{locale === "no" ? "Stemmeguiding" : "Voice guidance"}</span>
                                         </button>
 
@@ -519,7 +526,7 @@ export default function BreathingRoomClient() {
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                setIsPro((p) => !p);
+                                                setIsPro(!isPro);
                                                 setVoiceEnabled(false);
                                                 setAnimNonce((n) => n + 1);
                                                 stopSoftBreath();
@@ -540,7 +547,6 @@ export default function BreathingRoomClient() {
                                     </div>
                                 </div>
                             ) : (
-                                // “tomhøyde” så alt holder posisjon
                                 <div className="w-full" />
                             )}
                         </div>

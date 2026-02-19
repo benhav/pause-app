@@ -1,3 +1,4 @@
+// app/HomeClient.tsx
 "use client";
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
@@ -15,12 +16,11 @@ import { ChoiceButton } from "./components/ChoiceButton";
 import ThemeToggle from "./components/ThemeToggle";
 import SecondaryButton from "./components/SecondaryButton";
 
+import ThemeSheet from "./components/ThemeSheet";
+import { useAppPrefs } from "./AppProviders";
+
 import type { Choice, Step } from "./lib/pauseTypes";
-import {
-    getEndText,
-    getGentleAdvice,
-    getValidationText,
-} from "./lib/pauseTextLogic";
+import { getEndText, getGentleAdvice, getValidationText } from "./lib/pauseTextLogic";
 import { UI_TEXT, type Locale } from "./data/uiText";
 
 function todayKey() {
@@ -44,11 +44,7 @@ const DEFAULT_CHOICE: Choice = {
     boundary: "",
 };
 
-export default function HomeClient({
-    initialLocale,
-}: {
-    initialLocale: Locale;
-}) {
+export default function HomeClient({ initialLocale }: { initialLocale: Locale }) {
     const doneRef = useRef<HTMLDivElement | null>(null);
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -94,6 +90,11 @@ export default function HomeClient({
     const [step, setStep] = useState<Step>("welcome");
     const [choice, setChoice] = useState<Choice>(DEFAULT_CHOICE);
     const [resultText, setResultText] = useState<ResultText | null>(null);
+
+    const [themeOpen, setThemeOpen] = useState(false);
+
+    // ✅ FIX: hent også setProDemo (du bruker den i ThemeSheet-props)
+    const { proDemo, setProDemo } = useAppPrefs();
 
     const resetToStart = useCallback(() => {
         setStep("welcome");
@@ -238,7 +239,24 @@ export default function HomeClient({
                                 <Subtitle>{t.subtitle}</Subtitle>
                             </div>
 
+                            {/* Theme button pinned bottom (kun welcome) */}
+                            <div className="absolute bottom-6 left-0 right-0 px-6">
+                                <button
+                                    type="button"
+                                    onClick={() => setThemeOpen(true)}
+                                    className="w-full rounded-2xl px-4 py-4 text-sm border bg-[var(--surface)] text-[var(--text)] border-[color:var(--border)]"
+                                    aria-label={t.themeTitle}
+                                >
+                                    {t.themeTitle}
+                                </button>
+                            </div>
 
+
+                            <ThemeSheet
+                                open={themeOpen}
+                                onClose={() => setThemeOpen(false)}
+                                locale={locale}
+                            />
                             {/* Breathing room shortcut */}
                             <div className="absolute left-3 top-2">
                                 <button
@@ -258,7 +276,6 @@ export default function HomeClient({
                             </div>
 
                             {/* Language + dark or light toggle */}
-
                             <div className="absolute right-3 top-2 flex items-center gap-3">
                                 <ThemeToggle />
 
@@ -269,12 +286,13 @@ export default function HomeClient({
                                         aria-label="Switch to Norwegian"
                                         className={[
                                             "rounded-full p-0.5",
-                                            locale === "no" ? "ring-2 ring-[color:var(--ring)]" : "ring-1 ring-[color:var(--border)]",
+                                            locale === "no"
+                                                ? "ring-2 ring-[color:var(--ring)]"
+                                                : "ring-1 ring-[color:var(--border)]",
                                         ].join(" ")}
                                     >
                                         <img src="/flags/nor.svg" alt="Norsk" className="h-6 w-6 rounded-full" />
                                     </button>
-
 
                                     <button
                                         type="button"
@@ -282,7 +300,9 @@ export default function HomeClient({
                                         aria-label="Switch to English"
                                         className={[
                                             "rounded-full p-0.5",
-                                            locale === "en" ? "ring-2 ring-[color:var(--ring)]" : "ring-1 ring-[color:var(--border)]",
+                                            locale === "en"
+                                                ? "ring-2 ring-[color:var(--ring)]"
+                                                : "ring-1 ring-[color:var(--border)]",
                                         ].join(" ")}
                                     >
                                         <img src="/flags/gb-eng.svg" alt="English" className="h-6 w-6 rounded-full" />
@@ -300,10 +320,7 @@ export default function HomeClient({
                             </div>
 
                             <div className="mt-8">
-                                <PrimaryButton
-                                    onClick={() => setStep("capacity")}
-                                    ariaLabel={t.begin}
-                                >
+                                <PrimaryButton onClick={() => setStep("capacity")} ariaLabel={t.begin}>
                                     {t.begin}
                                 </PrimaryButton>
                             </div>
@@ -312,12 +329,7 @@ export default function HomeClient({
 
                     {step === "capacity" && (
                         <div className="fade-in">
-                            <TopRow
-                                onBack={() => setStep("welcome")}
-                                onHome={() => setStep("welcome")}
-                                showHome
-                                locale={locale}
-                            />
+                            <TopRow onBack={() => setStep("welcome")} onHome={() => setStep("welcome")} showHome locale={locale} />
                             <ProgressDots current={1} total={4} />
                             <div className="mt-1 mb-4" />
 
@@ -360,12 +372,7 @@ export default function HomeClient({
 
                     {step === "load" && (
                         <div className="fade-in">
-                            <TopRow
-                                onBack={() => setStep("capacity")}
-                                onHome={() => setStep("welcome")}
-                                showHome
-                                locale={locale}
-                            />
+                            <TopRow onBack={() => setStep("capacity")} onHome={() => setStep("welcome")} showHome locale={locale} />
                             <ProgressDots current={2} total={4} />
                             <div className="mt-1 mb-4" />
 
@@ -397,10 +404,7 @@ export default function HomeClient({
                             </div>
 
                             <div className="mt-6 sm:hidden">
-                                <SecondaryButton
-                                    onClick={() => setStep("capacity")}
-                                    ariaLabel={t.goBack}
-                                >
+                                <SecondaryButton onClick={() => setStep("capacity")} ariaLabel={t.goBack}>
                                     {t.goBack}
                                 </SecondaryButton>
                             </div>
@@ -409,12 +413,7 @@ export default function HomeClient({
 
                     {step === "boundary" && (
                         <div className="fade-in">
-                            <TopRow
-                                onBack={() => setStep("load")}
-                                onHome={() => setStep("welcome")}
-                                showHome
-                                locale={locale}
-                            />
+                            <TopRow onBack={() => setStep("load")} onHome={() => setStep("welcome")} showHome locale={locale} />
                             <ProgressDots current={3} total={4} />
                             <div className="mt-1 mb-4" />
 
@@ -428,7 +427,7 @@ export default function HomeClient({
                                     aria-label="Boundary"
                                     className={[
                                         "w-full rounded-xl p-3 text-base leading-6 outline-none",
-                                        "border border-neutral-200 bg-white text-neutral-900 placeholder-neutral-400",
+                                        "border border-neutral-200 bg-[var(--app-bg)] text-neutral-900 placeholder-neutral-400",
                                         "focus:ring-2 focus:ring-neutral-200",
 
                                         // Dark mode
@@ -452,19 +451,13 @@ export default function HomeClient({
 
                             <div className="mt-8">
                                 <div ref={doneRef}>
-                                    <PrimaryButton
-                                        onClick={() => setTimeout(() => setStep("result"), 300)}
-                                        ariaLabel={t.done}
-                                    >
+                                    <PrimaryButton onClick={() => setTimeout(() => setStep("result"), 300)} ariaLabel={t.done}>
                                         {t.done}
                                     </PrimaryButton>
                                 </div>
 
                                 <div className="mt-6 sm:hidden">
-                                    <SecondaryButton
-                                        onClick={() => setStep("load")}
-                                        ariaLabel={t.goBack}
-                                    >
+                                    <SecondaryButton onClick={() => setStep("load")} ariaLabel={t.goBack}>
                                         {t.goBack}
                                     </SecondaryButton>
                                 </div>
@@ -474,12 +467,7 @@ export default function HomeClient({
 
                     {step === "result" && (
                         <div className="fade-in">
-                            <TopRow
-                                onBack={() => setStep("boundary")}
-                                onHome={() => setStep("welcome")}
-                                showHome
-                                locale={locale}
-                            />
+                            <TopRow onBack={() => setStep("boundary")} onHome={() => setStep("welcome")} showHome locale={locale} />
                             <ProgressDots current={4} total={4} />
                             <div className="mt-1 mb-4" />
 
@@ -490,36 +478,23 @@ export default function HomeClient({
                                     <b>{safeResult.validation}</b>
                                 </div>
 
-                                <div className="mt-5 text-xs text-neutral-500 tracking-wide">
-                                    {t.gentleLabel}
-                                </div>
+                                <div className="mt-5 text-xs text-neutral-500 tracking-wide">{t.gentleLabel}</div>
                                 <div className="mt-2 text-sm text-neutral-700">{safeResult.advice}</div>
 
                                 {hasBoundary ? (
                                     <>
-                                        <div className="mt-6 text-xs text-neutral-500 tracking-wide">
-                                            {t.doNotPushLabel}
-                                        </div>
-                                        <div className="mt-2 text-sm text-neutral-700">
-                                            {choice.boundary.trim()}
-                                        </div>
+                                        <div className="mt-6 text-xs text-neutral-500 tracking-wide">{t.doNotPushLabel}</div>
+                                        <div className="mt-2 text-sm text-neutral-700">{choice.boundary.trim()}</div>
                                     </>
                                 ) : (
-                                    <div className="mt-6 text-center text-xs text-neutral-400">
-                                        {t.nothingAddedHint}
-                                    </div>
+                                    <div className="mt-6 text-center text-xs text-neutral-400">{t.nothingAddedHint}</div>
                                 )}
                             </div>
 
-                            <div className="mt-6 text-center text-sm text-neutral-600">
-                                {safeResult.end}
-                            </div>
+                            <div className="mt-6 text-center text-sm text-neutral-600">{safeResult.end}</div>
 
                             <div className="mt-6 space-y-3">
-                                <PrimaryButton
-                                    onClick={() => router.push(`/breathingroom?lang=${locale}`)}
-                                    ariaLabel={t.openBreathingRoom}
-                                >
+                                <PrimaryButton onClick={() => router.push(`/breathingroom?lang=${locale}`)} ariaLabel={t.openBreathingRoom}>
                                     {t.breathingRoom}
                                 </PrimaryButton>
 

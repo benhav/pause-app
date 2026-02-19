@@ -71,6 +71,488 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+
+/* =========================================================
+   THEME SKINS (via html[data-skin="..."])
+   Classic = default (ingen override)
+   ========================================================= */
+
+/* ---------- FLOATING (LIGHT) ---------- */
+html[data-skin="floating"] {
+  /* litt “mykere” og mer airy */
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-2: rgba(255, 255, 255, 0.78);
+  --surface-hover: rgba(240, 249, 255, 0.95);
+  --press: rgba(219, 234, 254, 0.9);
+  --border: rgba(229, 231, 235, 0.85);
+  --ring: rgba(59, 130, 246, 0.25);
+}
+
+/* System dark når bruker IKKE har valgt manuelt (ingen html.dark) */
+@media (prefers-color-scheme: dark) {
+  html[data-skin="floating"]:not(.light):not(.dark) {
+    --surface: rgba(17, 24, 39, 0.78);
+    --surface-2: rgba(15, 23, 42, 0.62);
+    --surface-hover: rgba(17, 24, 39, 0.9);
+    --press: rgba(11, 18, 32, 0.9);
+    --border: rgba(31, 41, 55, 0.85);
+    --ring: rgba(148, 163, 184, 0.22);
+  }
+}
+
+/* Manuell dark */
+html[data-skin="floating"].dark {
+  --surface: rgba(17, 24, 39, 0.78);
+  --surface-2: rgba(15, 23, 42, 0.62);
+  --surface-hover: rgba(17, 24, 39, 0.9);
+  --press: rgba(11, 18, 32, 0.9);
+  --border: rgba(31, 41, 55, 0.85);
+  --ring: rgba(148, 163, 184, 0.22);
+}
+
+/* ---------- NATURE (LIGHT) ---------- */
+html[data-skin="nature"] {
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-2: rgba(255, 255, 255, 0.78);
+  --surface-hover: rgba(236, 253, 245, 0.95); /* teal-50-ish */
+  --press: rgba(209, 250, 229, 0.9);         /* emerald-100-ish */
+  --border: rgba(229, 231, 235, 0.85);
+  --ring: rgba(16, 185, 129, 0.22);          /* emerald-ish */
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-skin="nature"]:not(.light):not(.dark) {
+    --surface: rgba(10, 20, 18, 0.78);
+    --surface-2: rgba(8, 16, 14, 0.62);
+    --surface-hover: rgba(10, 20, 18, 0.9);
+    --press: rgba(6, 14, 12, 0.9);
+    --border: rgba(20, 35, 30, 0.85);
+    --ring: rgba(110, 231, 183, 0.20);
+  }
+}
+
+html[data-skin="nature"].dark {
+  --surface: rgba(10, 20, 18, 0.78);
+  --surface-2: rgba(8, 16, 14, 0.62);
+  --surface-hover: rgba(10, 20, 18, 0.9);
+  --press: rgba(6, 14, 12, 0.9);
+  --border: rgba(20, 35, 30, 0.85);
+  --ring: rgba(110, 231, 183, 0.20);
+}
+
+/* ---------- NIGHT-FIRST (DARK ONLY) ---------- */
+html[data-skin="nightfirst"].dark {
+  --app-bg: #050712;
+  --bg: var(--app-bg);
+  --text: #eef2ff;
+  --muted: rgba(226, 232, 240, 0.65);
+  --surface: rgba(17, 24, 39, 0.62);
+  --surface-2: rgba(15, 23, 42, 0.52);
+  --surface-hover: rgba(17, 24, 39, 0.82);
+  --press: rgba(11, 18, 32, 0.92);
+  --border: rgba(148, 163, 184, 0.16);
+  --ring: rgba(99, 102, 241, 0.24);
+}
+
+
+/* -------------------------------
+   SKINS (tema-utseende)
+   Brukes i tillegg til light/dark
+---------------------------------*/
+
+/* Default hvis ingenting er valgt */
+html:not([data-skin]),
+html[data-skin="classic"] {
+  --skin-accent: #0ea5e9; /* blå */
+  --skin-card: var(--surface);
+  --skin-card-2: var(--surface-2);
+  --skin-hero-bg: var(--bg);
+}
+
+/* Floating (bølger) */
+html[data-skin="floating"] {
+  --skin-accent: #0ea5e9;
+  --skin-card: rgba(255, 255, 255, 0.82);
+  --skin-card-2: rgba(255, 255, 255, 0.70);
+  --skin-hero-bg: transparent;
+}
+
+/* Nature soft */
+html[data-skin="nature"] {
+  --skin-accent: #2f855a; /* grønn */
+  --skin-card: rgba(255, 255, 255, 0.78);
+  --skin-card-2: rgba(255, 255, 255, 0.65);
+  --skin-hero-bg: transparent;
+}
+
+/* Night-first */
+html[data-skin="night-first"] {
+  --skin-accent: #60a5fa;
+  --skin-card: rgba(17, 24, 39, 0.75);
+  --skin-card-2: rgba(15, 23, 42, 0.70);
+  --skin-hero-bg: transparent;
+}
+
+/* “Gratis” bølger (CSS-only) */
+html[data-skin="floating"] body {
+  background:
+    radial-gradient(1200px 700px at 50% 120%, rgba(14,165,233,0.18), transparent 60%),
+    radial-gradient(900px 600px at 10% 20%, rgba(56,189,248,0.16), transparent 55%),
+    radial-gradient(900px 600px at 90% 10%, rgba(2,132,199,0.12), transparent 55%),
+    var(--app-bg);
+}
+
+/* Nature bakgrunn */
+html[data-skin="nature"] body {
+  background:
+    radial-gradient(1000px 700px at 50% 120%, rgba(47,133,90,0.18), transparent 60%),
+    radial-gradient(900px 600px at 12% 18%, rgba(34,197,94,0.10), transparent 55%),
+    radial-gradient(900px 600px at 88% 12%, rgba(132,204,22,0.08), transparent 55%),
+    var(--app-bg);
+}
+
+/* Night-first bakgrunn */
+html[data-skin="night-first"] body {
+  background:
+    radial-gradient(900px 600px at 50% 10%, rgba(96,165,250,0.10), transparent 60%),
+    radial-gradient(1100px 700px at 50% 120%, rgba(59,130,246,0.10), transparent 65%),
+    var(--app-bg);
+}
+
+
+/* =========================================================
+   Pause Theme Engine (CSS Variables)
+   ========================================================= */
+
+/* Base tokens (Classic default) */
+:root {
+  --app-bg: #ffffff;
+
+  --surface: #ffffff;
+  --surface-2: #f7f7f8;
+  --surface-hover: #f2f3f5;
+  --press: #eceef2;
+
+  --text: #111827;
+  --muted: #6b7280;
+  --border: rgba(17, 24, 39, 0.12);
+
+  /* Accent + “preview” */
+  --accent: #0ea5e9;
+  --accent-soft: rgba(14, 165, 233, 0.25);
+
+  /* Cards */
+  --card-bg: var(--surface);
+  --card-border: var(--border);
+
+  /* Theme-specific effects */
+  --shadow: 0 6px 18px rgba(17, 24, 39, 0.06);
+  --ring: rgba(14, 165, 233, 0.45);
+
+  /* Optional: waves/backdrop */
+  --backdrop: transparent;
+}
+
+/* Dark mode base (Classic dark) */
+html.dark :root {
+  --app-bg: #0b1220;
+
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(255, 255, 255, 0.08);
+  --surface-hover: rgba(255, 255, 255, 0.10);
+  --press: rgba(255, 255, 255, 0.12);
+
+  --text: #e5e7eb;
+  --muted: rgba(229, 231, 235, 0.72);
+  --border: rgba(229, 231, 235, 0.12);
+
+  --accent: #60a5fa;
+  --accent-soft: rgba(96, 165, 250, 0.20);
+
+  --shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  --ring: rgba(96, 165, 250, 0.45);
+}
+
+/* =========================================================
+   PRO THEMES (by data-skin)
+   ========================================================= */
+
+/* Floating (day) */
+html[data-skin="floating"] {
+  --app-bg: #fbfdff;
+
+  --accent: #0ea5e9;
+  --accent-soft: rgba(14, 165, 233, 0.22);
+
+  --card-bg: linear-gradient(
+    180deg,
+    rgba(14, 165, 233, 0.16),
+    rgba(255, 255, 255, 0.78)
+  );
+  --card-border: rgba(14, 165, 233, 0.45);
+
+  --backdrop: radial-gradient(
+      700px 300px at 50% -50px,
+      rgba(14, 165, 233, 0.10),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 380px at 90% 20%,
+      rgba(14, 165, 233, 0.08),
+      transparent 60%
+    );
+}
+
+/* Floating (night) */
+html.dark[data-skin="floating"] {
+  --app-bg: #07111f;
+
+  --accent: #60a5fa;
+  --accent-soft: rgba(96, 165, 250, 0.18);
+
+  --card-bg: linear-gradient(
+    180deg,
+    rgba(96, 165, 250, 0.14),
+    rgba(0, 0, 0, 0.22)
+  );
+  --card-border: rgba(96, 165, 250, 0.38);
+
+  --backdrop: radial-gradient(
+      800px 320px at 50% -60px,
+      rgba(96, 165, 250, 0.12),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 380px at 85% 15%,
+      rgba(96, 165, 250, 0.08),
+      transparent 65%
+    );
+}
+
+/* Nature (day) */
+html[data-skin="nature"] {
+  --app-bg: #fbfff9;
+
+  --accent: #2f855a;
+  --accent-soft: rgba(47, 133, 90, 0.22);
+
+  --card-bg: linear-gradient(
+    180deg,
+    rgba(47, 133, 90, 0.14),
+    rgba(255, 255, 255, 0.82)
+  );
+  --card-border: rgba(47, 133, 90, 0.40);
+
+  --backdrop: radial-gradient(
+      850px 360px at 50% -70px,
+      rgba(47, 133, 90, 0.10),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 420px at 85% 15%,
+      rgba(47, 133, 90, 0.08),
+      transparent 65%
+    );
+}
+
+/* Nature (night) */
+html.dark[data-skin="nature"] {
+  --app-bg: #06150f;
+
+  --accent: #34d399;
+  --accent-soft: rgba(52, 211, 153, 0.16);
+
+  --card-bg: linear-gradient(
+    180deg,
+    rgba(52, 211, 153, 0.12),
+    rgba(0, 0, 0, 0.22)
+  );
+  --card-border: rgba(52, 211, 153, 0.32);
+
+  --backdrop: radial-gradient(
+      850px 360px at 50% -70px,
+      rgba(52, 211, 153, 0.10),
+      transparent 60%
+    );
+}
+
+/* Night-first (always “nighty”) */
+html[data-skin="night-first"] {
+  --app-bg: #070b14;
+
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(255, 255, 255, 0.08);
+  --surface-hover: rgba(255, 255, 255, 0.10);
+  --press: rgba(255, 255, 255, 0.12);
+
+  --text: #e5e7eb;
+  --muted: rgba(229, 231, 235, 0.72);
+  --border: rgba(229, 231, 235, 0.12);
+
+  --accent: #60a5fa;
+  --accent-soft: rgba(96, 165, 250, 0.18);
+
+  --card-bg: linear-gradient(
+    180deg,
+    rgba(96, 165, 250, 0.12),
+    rgba(0, 0, 0, 0.22)
+  );
+  --card-border: rgba(96, 165, 250, 0.34);
+
+  --backdrop: radial-gradient(
+      900px 380px at 50% -80px,
+      rgba(96, 165, 250, 0.12),
+      transparent 60%
+    );
+}
+
+/* Helper class: use backdrop easily */
+.pause-backdrop {
+  background: var(--backdrop);
+}
+
+
+
+/* app/globals.css */
+
+/* Base fallback */
+:root {
+  --app-bg: #ffffff;
+  --text: #0b0b0b;
+  --muted: #6b7280;
+  --border: rgba(0,0,0,0.10);
+
+  --surface: rgba(255,255,255,0.82);
+  --surface-2: rgba(255,255,255,0.62);
+  --surface-hover: rgba(255,255,255,0.92);
+  --press: rgba(0,0,0,0.04);
+
+  --ring: rgba(14,165,233,0.55);
+
+  /* Pusterom-sirkel */
+  --breath-fill: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.95), rgba(186,230,253,0.95) 35%, rgba(125,211,252,0.9) 70%, rgba(56,189,248,0.8));
+  --breath-shadow: 0 10px 30px rgba(0,0,0,0.08);
+}
+
+/* Bakgrunnslayer (bølger/blader) */
+body {
+  background: var(--app-bg);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: var(--bg-layer, none);
+  opacity: var(--bg-opacity, 1);
+}
+
+/* Sørg for at appen ligger over bg-layer */
+#__next, main {
+  position: relative;
+  z-index: 1;
+}
+
+/* ========== SKINS ========== */
+
+/* Classic */
+:root[data-skin="classic"] {
+  --app-bg: #ffffff;
+  --text: #0b0b0b;
+  --muted: #6b7280;
+  --border: rgba(0,0,0,0.10);
+
+  --surface: rgba(255,255,255,0.88);
+  --surface-2: rgba(255,255,255,0.68);
+  --surface-hover: rgba(255,255,255,0.94);
+  --press: rgba(0,0,0,0.04);
+
+  --ring: rgba(14,165,233,0.55);
+
+  --bg-layer:
+    radial-gradient(1200px 700px at 30% 10%, rgba(14,165,233,0.10), transparent 60%),
+    radial-gradient(900px 600px at 70% 30%, rgba(14,165,233,0.06), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,1), rgba(255,255,255,1));
+  --bg-opacity: 1;
+
+  --breath-fill: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.98), rgba(186,230,253,0.95) 35%, rgba(125,211,252,0.88) 70%, rgba(56,189,248,0.78));
+  --breath-shadow: 0 10px 30px rgba(0,0,0,0.08);
+}
+
+/* Floating (bølger) */
+:root[data-skin="floating"] {
+  --app-bg: #ffffff;
+  --ring: rgba(14,165,233,0.55);
+
+  --bg-layer:
+    radial-gradient(1100px 800px at 50% 15%, rgba(14,165,233,0.18), transparent 62%),
+    radial-gradient(900px 700px at 30% 45%, rgba(14,165,233,0.10), transparent 62%),
+    radial-gradient(800px 600px at 80% 55%, rgba(14,165,233,0.08), transparent 62%),
+    /* “bølge” feeling */
+    repeating-radial-gradient(circle at 50% 20%,
+      rgba(14,165,233,0.06) 0px,
+      rgba(14,165,233,0.06) 2px,
+      transparent 10px,
+      transparent 26px),
+    linear-gradient(180deg, rgba(255,255,255,1), rgba(248,251,255,1));
+  --bg-opacity: 1;
+
+  --breath-fill: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.98), rgba(186,230,253,0.92) 35%, rgba(125,211,252,0.84) 70%, rgba(56,189,248,0.72));
+  --breath-shadow: 0 14px 40px rgba(14,165,233,0.10);
+}
+
+/* Nature (blader) */
+:root[data-skin="nature"] {
+  --ring: rgba(47,133,90,0.55);
+
+  --bg-layer:
+    radial-gradient(1100px 800px at 45% 10%, rgba(47,133,90,0.16), transparent 62%),
+    radial-gradient(900px 700px at 20% 55%, rgba(47,133,90,0.10), transparent 62%),
+    radial-gradient(900px 700px at 80% 55%, rgba(47,133,90,0.08), transparent 62%),
+    /* “blad” feeling (mykt, ikke bokstavelig) */
+    conic-gradient(from 180deg at 20% 25%, rgba(47,133,90,0.08), transparent 40%, rgba(47,133,90,0.06)),
+    conic-gradient(from 220deg at 80% 30%, rgba(47,133,90,0.07), transparent 45%, rgba(47,133,90,0.05)),
+    linear-gradient(180deg, rgba(255,255,255,1), rgba(249,255,251,1));
+  --bg-opacity: 1;
+
+  --breath-fill: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.98), rgba(187,247,208,0.55) 40%, rgba(134,239,172,0.35) 70%, rgba(47,133,90,0.18));
+  --breath-shadow: 0 14px 40px rgba(47,133,90,0.10);
+}
+
+/* Night-first (dark) */
+:root[data-skin="night-first"] {
+  --app-bg: #070a0c;
+  --text: rgba(255,255,255,0.92);
+  --muted: rgba(255,255,255,0.65);
+  --border: rgba(255,255,255,0.12);
+
+  --surface: rgba(10,14,16,0.72);
+  --surface-2: rgba(10,14,16,0.55);
+  --surface-hover: rgba(10,14,16,0.82);
+  --press: rgba(255,255,255,0.06);
+
+  --ring: rgba(96,165,250,0.55);
+
+  --bg-layer:
+    radial-gradient(1200px 800px at 50% 0%, rgba(96,165,250,0.12), transparent 60%),
+    radial-gradient(900px 700px at 20% 60%, rgba(16,185,129,0.08), transparent 60%),
+    radial-gradient(900px 700px at 80% 65%, rgba(96,165,250,0.06), transparent 60%),
+    linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
+  --bg-opacity: 1;
+
+  /* Pusterom-sirkel må være synlig i mørket */
+  --breath-fill: radial-gradient(circle at 35% 30%,
+    rgba(255,255,255,0.18),
+    rgba(96,165,250,0.16) 35%,
+    rgba(59,130,246,0.14) 65%,
+    rgba(16,185,129,0.10));
+  --breath-shadow: 0 18px 60px rgba(0,0,0,0.55);
+}
+
+
+
 /* Dine animasjoner beholdes */
 @keyframes fadeIn {
   from {
