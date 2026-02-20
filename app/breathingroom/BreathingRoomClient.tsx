@@ -1,20 +1,18 @@
+// app/breathingroom/BreathingRoomClient.tsx
 "use client";
 
 import {
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    useCallback,
-    type CSSProperties,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+  type CSSProperties,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Locale } from "../data/uiText";
 import { UI_TEXT } from "../data/uiText";
 import { SoftBreath } from "../lib/softBreath";
-
-import { applySkin, getSavedSkin } from "../lib/skin";
-
 import { useAppPrefs } from "../AppProviders";
 
 const STORAGE_KEY = "pause-locale";
@@ -27,544 +25,491 @@ const DEFAULT_SECONDS = 10; // default
 type VoicePhase = "in" | "hold" | "out";
 
 function getVoiceText(locale: Locale, phase: VoicePhase) {
-    if (locale === "no") {
-        if (phase === "in") return "Pust inn";
-        if (phase === "hold") return "Hold";
-        return "Pust ut";
-    }
-    if (phase === "in") return "Breathe in";
+  if (locale === "no") {
+    if (phase === "in") return "Pust inn";
     if (phase === "hold") return "Hold";
-    return "Breathe out";
+    return "Pust ut";
+  }
+  if (phase === "in") return "Breathe in";
+  if (phase === "hold") return "Hold";
+  return "Breathe out";
 }
 
 // --- NEW: pickVoice + improved speak (drop-in) ---
 function pickVoice(locale: Locale) {
-    const synth = window.speechSynthesis;
-    const voices = synth?.getVoices?.() ?? [];
-    if (!voices.length) return null;
+  const synth = window.speechSynthesis;
+  const voices = synth?.getVoices?.() ?? [];
+  if (!voices.length) return null;
 
-    const wanted =
-        locale === "no"
-            ? ["nb-NO", "no-NO", "nb", "no"]
-            : ["en-GB", "en-US", "en"];
+  const wanted =
+    locale === "no" ? ["nb-NO", "no-NO", "nb", "no"] : ["en-GB", "en-US", "en"];
 
-    const norm = (s: string) => (s || "").toLowerCase();
+  const norm = (s: string) => (s || "").toLowerCase();
 
-    // 1) exact lang match
-    for (const w of wanted) {
-        const v = voices.find((v) => norm(v.lang) === norm(w));
-        if (v) return v;
-    }
+  // 1) exact lang match
+  for (const w of wanted) {
+    const v = voices.find((v) => norm(v.lang) === norm(w));
+    if (v) return v;
+  }
 
-    // 2) prefix lang match
-    for (const w of wanted) {
-        const v = voices.find((v) => norm(v.lang).startsWith(norm(w)));
-        if (v) return v;
-    }
+  // 2) prefix lang match
+  for (const w of wanted) {
+    const v = voices.find((v) => norm(v.lang).startsWith(norm(w)));
+    if (v) return v;
+  }
 
-    // 3) name-ish heuristic
-    if (locale === "no") {
-        const v = voices.find(
-            (v) => /nor|norsk|bokm|nb/i.test(v.name) || /no/i.test(v.lang)
-        );
-        if (v) return v;
-    } else {
-        const v = voices.find(
-            (v) => /english|en/i.test(v.name) || /en/i.test(v.lang)
-        );
-        if (v) return v;
-    }
+  // 3) name-ish heuristic
+  if (locale === "no") {
+    const v = voices.find(
+      (v) => /nor|norsk|bokm|nb/i.test(v.name) || /no/i.test(v.lang)
+    );
+    if (v) return v;
+  } else {
+    const v = voices.find((v) => /english|en/i.test(v.name) || /en/i.test(v.lang));
+    if (v) return v;
+  }
 
-    return voices[0] ?? null;
+  return voices[0] ?? null;
 }
 
 function speak(text: string, locale: Locale) {
-    if (typeof window === "undefined") return;
-    const synth = window.speechSynthesis;
-    if (!synth) return;
+  if (typeof window === "undefined") return;
+  const synth = window.speechSynthesis;
+  if (!synth) return;
 
-    try {
-        synth.cancel();
+  try {
+    synth.cancel();
 
-        const u = new SpeechSynthesisUtterance(text);
+    const u = new SpeechSynthesisUtterance(text);
 
-        // lang for uttale
-        u.lang = locale === "no" ? "nb-NO" : "en-GB";
+    // lang for uttale
+    u.lang = locale === "no" ? "nb-NO" : "en-GB";
 
-        // velg best voice (reduserer “rar norsk”)
-        const v = pickVoice(locale);
-        if (v) u.voice = v;
+    // velg best voice (reduserer “rar norsk”)
+    const v = pickVoice(locale);
+    if (v) u.voice = v;
 
-        // Mykere/roligere
-        u.rate = 0.88;
-        u.pitch = 0.95;
-        u.volume = 0.85;
+    // Mykere/roligere
+    u.rate = 0.88;
+    u.pitch = 0.95;
+    u.volume = 0.85;
 
-        synth.speak(u);
-    } catch { }
+    synth.speak(u);
+  } catch {}
 }
 
 export default function BreathingRoomClient() {
-    const router = useRouter();
-    const searchParams = useSearchParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-    const [mounted, setMounted] = useState(false);
-    const [locale, setLocale] = useState<Locale>("no");
+  const [mounted, setMounted] = useState(false);
+  const [locale, setLocale] = useState<Locale>("no");
 
-    const [showElements, setShowElements] = useState(true);
-    const [seconds, setSeconds] = useState<number>(DEFAULT_SECONDS);
+  const [showElements, setShowElements] = useState(true);
+  const [seconds, setSeconds] = useState<number>(DEFAULT_SECONDS);
 
-    // Voice / Pro
-    const { proDemo: isPro, setProDemo: setIsPro, isDark } = useAppPrefs();
-    const [voiceEnabled, setVoiceEnabled] = useState(false);
+  // Voice / Pro
+  const { proDemo: isPro, setProDemo: setIsPro } = useAppPrefs();
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
 
-    // For å kunne “resette” animasjonen (og synce voice 1:1)
-    const [animNonce, setAnimNonce] = useState(0);
+  // For å kunne “resette” animasjonen (og synce voice 1:1)
+  const [animNonce, setAnimNonce] = useState(0);
 
-    const timersRef = useRef<number[]>([]);
+  const timersRef = useRef<number[]>([]);
 
-    // --- SoftBreath (WebAudio) ---
-    const breathRef = useRef<SoftBreath | null>(null);
-    const scheduleTimerRef = useRef<number | null>(null);
+  // --- SoftBreath (WebAudio) ---
+  const breathRef = useRef<SoftBreath | null>(null);
+  const scheduleTimerRef = useRef<number | null>(null);
 
-    const stopSoftBreath = useCallback(() => {
-        if (scheduleTimerRef.current) {
-            window.clearTimeout(scheduleTimerRef.current);
-            scheduleTimerRef.current = null;
-        }
-    }, []);
+  const stopSoftBreath = useCallback(() => {
+    if (scheduleTimerRef.current) {
+      window.clearTimeout(scheduleTimerRef.current);
+      scheduleTimerRef.current = null;
+    }
+  }, []);
 
-    const scheduleSoftBreath = useCallback(() => {
-        const eng = breathRef.current;
-        if (!eng) return;
+  const scheduleSoftBreath = useCallback(() => {
+    const eng = breathRef.current;
+    if (!eng) return;
 
-        // Synk med keyframes:
-        // 0->28% inn, 28->40% hold, 40->72% ut, resten tilbake/ro
-        const inhale = seconds * 0.28;
-        const hold = seconds * 0.12;
-        const exhale = seconds * 0.32;
+    // Synk med keyframes:
+    // 0->28% inn, 28->40% hold, 40->72% ut, resten tilbake/ro
+    const inhale = seconds * 0.28;
+    const hold = seconds * 0.12;
+    const exhale = seconds * 0.32;
 
-        const now = eng.now();
-        const start = now + 0.06; // liten buffer
+    const now = eng.now();
+    const start = now + 0.06; // liten buffer
 
-        // Svake markører + myk pust (noise-formet)
-        eng.chime(start, 528, 0.09);
-        eng.breath(start, inhale, "in");
+    eng.chime(start, 528, 0.09);
+    eng.breath(start, inhale, "in");
 
-        eng.chime(start + inhale, 432, 0.07);
+    eng.chime(start + inhale, 432, 0.07);
 
-        eng.breath(start + inhale + hold, exhale, "out");
-        eng.chime(start + inhale + hold + exhale, 396, 0.07);
+    eng.breath(start + inhale + hold, exhale, "out");
+    eng.chime(start + inhale + hold + exhale, 396, 0.07);
 
-        // Reschedule før neste runde
-        const nextInMs = Math.max(250, (seconds - 0.15) * 1000);
-        scheduleTimerRef.current = window.setTimeout(() => {
-            scheduleSoftBreath();
-        }, nextInMs);
-    }, [seconds]);
+    const nextInMs = Math.max(250, (seconds - 0.15) * 1000);
+    scheduleTimerRef.current = window.setTimeout(() => {
+      scheduleSoftBreath();
+    }, nextInMs);
+  }, [seconds]);
 
-    useEffect(() => setMounted(true), []);
+  useEffect(() => setMounted(true), []);
 
-    // Apply saved skin on mount (og bare når vi er mounted)
-    useEffect(() => {
-        if (!mounted) return;
-        const s = getSavedSkin();
-        applySkin(s);
-    }, [mounted]);
+  // --- Warm up speech synthesis voices ---
+  function warmUpVoices() {
+    const s = window.speechSynthesis;
+    s?.getVoices?.();
+  }
 
-    // --- Warm up speech synthesis voices ---
-    function warmUpVoices() {
-        const s = window.speechSynthesis;
-        s?.getVoices?.();
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    warmUpVoices();
+
+    if (window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = () => warmUpVoices();
     }
 
-    useEffect(() => {
-        if (typeof window === "undefined") return;
+    return () => {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
+  }, []);
 
-        warmUpVoices();
+  // Språk: query param først (?lang=no|en), ellers localStorage
+  useEffect(() => {
+    if (!mounted) return;
 
-        if (window.speechSynthesis) {
-            window.speechSynthesis.onvoiceschanged = () => warmUpVoices();
-        }
+    const q = searchParams.get("lang");
+    const qLocale: Locale | null = q === "en" || q === "no" ? (q as Locale) : null;
 
-        return () => {
-            if (window.speechSynthesis) {
-                window.speechSynthesis.onvoiceschanged = null;
-            }
-        };
-    }, []);
+    if (qLocale) {
+      setLocale(qLocale);
+      try {
+        localStorage.setItem(STORAGE_KEY, qLocale);
+      } catch {}
+      return;
+    }
 
-    // Språk: query param først (?lang=no|en), ellers localStorage
-    useEffect(() => {
-        if (!mounted) return;
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved === "en" || saved === "no") setLocale(saved as Locale);
+    } catch {}
+  }, [mounted, searchParams]);
 
-        const q = searchParams.get("lang");
-        const qLocale: Locale | null =
-            q === "en" || q === "no" ? (q as Locale) : null;
+  const t = useMemo(() => UI_TEXT[locale], [locale]);
 
-        if (qLocale) {
-            setLocale(qLocale);
-            try {
-                localStorage.setItem(STORAGE_KEY, qLocale);
-            } catch { }
-            return;
-        }
+  // Bunn=tregest, topp=raskest.
+  const sliderValue = useMemo(() => MAX_SECONDS + MIN_SECONDS - seconds, [seconds]);
 
-        try {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved === "en" || saved === "no") setLocale(saved as Locale);
-        } catch { }
-    }, [mounted, searchParams]);
+  const onSliderChange = (v: number) => {
+    const inverted = MAX_SECONDS + MIN_SECONDS - v;
+    setSeconds(inverted);
+  };
 
-    const t = useMemo(() => UI_TEXT[locale], [locale]);
+  // Når hastigheten endres: restart animasjon (og dermed voice sync)
+  useEffect(() => {
+    setAnimNonce((n) => n + 1);
+  }, [seconds]);
 
-    // Bunn=tregest, topp=raskest.
-    const sliderValue = useMemo(
-        () => MAX_SECONDS + MIN_SECONDS - seconds,
-        [seconds]
-    );
+  const circleStyle: CSSProperties = useMemo(() => {
+    return {
+      animation: `breatheHold ${seconds}s ease-in-out infinite`,
+    };
+  }, [seconds]);
 
-    const onSliderChange = (v: number) => {
-        const inverted = MAX_SECONDS + MIN_SECONDS - v;
-        setSeconds(inverted);
+  // Voice loop (kun når pro + voiceEnabled)
+  useEffect(() => {
+    timersRef.current.forEach((id) => window.clearTimeout(id));
+    timersRef.current = [];
+
+    if (!mounted) return;
+
+    if (!isPro || !voiceEnabled) {
+      try {
+        window.speechSynthesis?.cancel();
+      } catch {}
+      return;
+    }
+
+    const inhale = Math.round(seconds * 0.28 * 1000);
+    const hold = Math.round(seconds * 0.12 * 1000);
+    const cycle = Math.round(seconds * 1000);
+
+    const runCycle = () => {
+      speak(getVoiceText(locale, "in"), locale);
+
+      timersRef.current.push(
+        window.setTimeout(() => speak(getVoiceText(locale, "hold"), locale), inhale)
+      );
+
+      timersRef.current.push(
+        window.setTimeout(
+          () => speak(getVoiceText(locale, "out"), locale),
+          inhale + hold
+        )
+      );
+
+      timersRef.current.push(window.setTimeout(runCycle, cycle));
     };
 
-    // Når hastigheten endres: restart animasjon (og dermed voice sync)
-    useEffect(() => {
-        setAnimNonce((n) => n + 1);
-    }, [seconds]);
+    const start = window.setTimeout(runCycle, 50);
+    timersRef.current.push(start);
 
-    const circleStyle: CSSProperties = useMemo(() => {
-        return {
-            animation: `breatheHold ${seconds}s ease-in-out infinite`,
-        };
-    }, [seconds]);
+    return () => {
+      timersRef.current.forEach((id) => window.clearTimeout(id));
+      timersRef.current = [];
+      try {
+        window.speechSynthesis?.cancel();
+      } catch {}
+    };
+  }, [mounted, isPro, voiceEnabled, seconds, locale, animNonce]);
 
-    // Voice loop (kun når pro + voiceEnabled)
-    useEffect(() => {
-        // rydd gamle timere
-        timersRef.current.forEach((id) => window.clearTimeout(id));
-        timersRef.current = [];
+  // --- SoftBreath: init + scheduling (kun når pro + voiceEnabled) ---
+  useEffect(() => {
+    if (!mounted) return;
 
-        if (!mounted) return;
+    stopSoftBreath();
+    if (!isPro || !voiceEnabled) return;
 
-        if (!isPro || !voiceEnabled) {
-            try {
-                window.speechSynthesis?.cancel();
-            } catch { }
-            return;
-        }
+    if (breathRef.current) {
+      scheduleSoftBreath();
+    }
 
-        // Synk med keyframes:
-        const inhale = Math.round(seconds * 0.28 * 1000);
-        const hold = Math.round(seconds * 0.12 * 1000);
-        const cycle = Math.round(seconds * 1000);
+    return () => stopSoftBreath();
+  }, [mounted, isPro, voiceEnabled, seconds, locale, animNonce, scheduleSoftBreath, stopSoftBreath]);
 
-        const runCycle = () => {
-            speak(getVoiceText(locale, "in"), locale);
+  useEffect(() => {
+    return () => {
+      stopSoftBreath();
+    };
+  }, [stopSoftBreath]);
 
-            timersRef.current.push(
-                window.setTimeout(
-                    () => speak(getVoiceText(locale, "hold"), locale),
-                    inhale
-                )
-            );
+  if (!mounted) return <main className="min-h-[100svh]" />;
 
-            timersRef.current.push(
-                window.setTimeout(
-                    () => speak(getVoiceText(locale, "out"), locale),
-                    inhale + hold
-                )
-            );
-
-            timersRef.current.push(window.setTimeout(runCycle, cycle));
-        };
-
-        // Start syklusen “fra start”
-        const start = window.setTimeout(runCycle, 50);
-        timersRef.current.push(start);
-
-        return () => {
-            timersRef.current.forEach((id) => window.clearTimeout(id));
-            timersRef.current = [];
-            try {
-                window.speechSynthesis?.cancel();
-            } catch { }
-        };
-    }, [mounted, isPro, voiceEnabled, seconds, locale, animNonce]);
-
-    // --- SoftBreath: init + scheduling (kun når pro + voiceEnabled) ---
-    useEffect(() => {
-        if (!mounted) return;
-
-        // stopp alltid først (også ved re-render)
-        stopSoftBreath();
-
-        if (!isPro || !voiceEnabled) return;
-
-        // om den finnes og er klar: schedule nå
-        if (breathRef.current) {
-            scheduleSoftBreath();
-        }
-
-        return () => stopSoftBreath();
-    }, [
-        mounted,
-        isPro,
-        voiceEnabled,
-        seconds,
-        locale,
-        animNonce,
-        scheduleSoftBreath,
-        stopSoftBreath,
-    ]);
-
-    // cleanup på unmount
-    useEffect(() => {
-        return () => {
-            stopSoftBreath();
-        };
-    }, [stopSoftBreath]);
-
-    if (!mounted) return <main className="min-h-[100svh]" />;
-
-    const langBtnClass = (active: boolean) =>
-        [
-            "rounded-full p-0.5",
-            active
-                ? "ring-2 ring-[color:var(--text)]"
-                : "ring-1 ring-[color:var(--border)]",
-        ].join(" ");
-
-    const surfaceButton = [
-        "w-full rounded-2xl px-4 py-4 text-sm",
-        "border bg-[var(--surface)] text-[var(--text)]",
-        "border-[color:var(--border)]",
-        "hover:bg-[var(--surface-hover)]",
-        "transition-transform duration-150 ease-out",
-        "active:scale-[0.985] active:translate-y-[1px]",
-        "active:shadow-inner active:bg-[var(--press)]",
+  const langBtnClass = (active: boolean) =>
+    [
+      "rounded-full p-0.5",
+      active ? "ring-2 ring-[color:var(--text)]" : "ring-1 ring-[color:var(--border)]",
     ].join(" ");
 
-    const smallPill = [
-        "inline-flex items-center justify-center gap-2",
-        "rounded-full border px-3 py-2 text-xs",
-        "border-[color:var(--border)] bg-[var(--surface)] text-[var(--text)]",
-        "hover:bg-[var(--surface-hover)]",
-    ].join(" ");
+  const surfaceButton = [
+    "w-full rounded-2xl px-4 py-4 text-sm",
+    "border bg-[var(--surface)] text-[var(--text)]",
+    "border-[color:var(--border)]",
+    "hover:bg-[var(--surface-hover)]",
+    "transition-transform duration-150 ease-out",
+    "active:scale-[0.985] active:translate-y-[1px]",
+    "active:shadow-inner active:bg-[var(--press)]",
+  ].join(" ");
 
-    return (
-        <main className="min-h-[100svh] w-full px-0 py-0 sm:flex sm:items-center sm:justify-center sm:px-4 sm:py-6 sm:pt-6">
-            <div className="w-full sm:max-w-md pb-[env(safe-area-inset-bottom)]">
-                <div
-                    className={[
-                        "relative w-full min-h-[100svh] rounded-none p-6",
-                        "bg-[var(--app-bg)] text-[var(--text)]",
-                        "sm:min-h-0 sm:rounded-3xl sm:shadow-sm sm:ring-1 sm:ring-[color:var(--border)]",
-                        "flex flex-col",
-                    ].join(" ")}
-                >
-                    {/* Top controls */}
-                    <div className="absolute right-3 top-2 flex items-center gap-3">
-                        <div className="flex gap-2">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setLocale("no");
-                                    try {
-                                        localStorage.setItem(STORAGE_KEY, "no");
-                                    } catch { }
-                                }}
-                                aria-label="Switch to Norwegian"
-                                className={langBtnClass(locale === "no")}
-                            >
-                                <img
-                                    src="/flags/nor.svg"
-                                    alt="Norsk"
-                                    className="h-6 w-6 rounded-full"
-                                />
-                            </button>
+  const smallPill = [
+    "inline-flex items-center justify-center gap-2",
+    "rounded-full border px-3 py-2 text-xs",
+    "border-[color:var(--border)] bg-[var(--surface)] text-[var(--text)]",
+    "hover:bg-[var(--surface-hover)]",
+  ].join(" ");
 
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setLocale("en");
-                                    try {
-                                        localStorage.setItem(STORAGE_KEY, "en");
-                                    } catch { }
-                                }}
-                                aria-label="Switch to English"
-                                className={langBtnClass(locale === "en")}
-                            >
-                                <img
-                                    src="/flags/gb-eng.svg"
-                                    alt="English"
-                                    className="h-6 w-6 rounded-full"
-                                />
-                            </button>
-                        </div>
-                    </div>
+  return (
+    <main className="min-h-[100svh] w-full px-0 py-0 sm:flex sm:items-center sm:justify-center sm:px-4 sm:py-6 sm:pt-6">
+      <div className="w-full sm:max-w-md pb-[env(safe-area-inset-bottom)]">
+        <div
+          className={[
+            "relative w-full min-h-[100svh] rounded-none p-6",
+            // VIKTIG: bruk surface (semi-transparent) så bakgrunnsbildet under synes
+            "bg-[var(--surface)] text-[var(--text)] backdrop-blur-xl",
+            "sm:min-h-0 sm:rounded-3xl sm:shadow-sm sm:ring-1 sm:ring-[color:var(--border)]",
+            "flex flex-col",
+          ].join(" ")}
+        >
+          {/* Top controls */}
+          <div className="absolute right-3 top-2 flex items-center gap-3">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setLocale("no");
+                  try {
+                    localStorage.setItem(STORAGE_KEY, "no");
+                  } catch {}
+                }}
+                aria-label="Switch to Norwegian"
+                className={langBtnClass(locale === "no")}
+              >
+                <img src="/flags/nor.svg" alt="Norsk" className="h-6 w-6 rounded-full" />
+              </button>
 
-                    {/* Layout: top / middle / bottom */}
-                    <div className="flex-1 grid grid-rows-[clamp(150px,20vh,200px)_1fr_clamp(190px,26vh,260px)]">
-                        {/* TOP */}
-                        <div className="pt-12 text-center">
-                            {showElements ? (
-                                <>
-                                    <div className="text-2xl font-semibold text-[var(--text)]">
-                                        {t.breathingRoomTitle}
-                                    </div>
-                                    <div className="mt-1 text-sm italic text-[var(--muted)]">
-                                        {t.followRhythm}
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowElements(false)}
-                                        className="mt-3 text-sm text-[var(--muted)] underline underline-offset-4 hover:opacity-90"
-                                    >
-                                        {t.hideElements}
-                                    </button>
-                                </>
-                            ) : (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowElements(true)}
-                                    className="text-sm text-[var(--muted)] underline underline-offset-4 hover:opacity-90"
-                                >
-                                    {t.showElements}
-                                </button>
-                            )}
-                        </div>
-
-                        {/* MIDDLE */}
-                        <div className="flex items-center justify-center">
-                            <div
-                                key={animNonce}
-                                className="rounded-full w-[55vmin] h-[55vmin] max-w-[320px] max-h-[320px] will-change-transform"
-                                style={{
-                                    ...circleStyle,
-                                    background: "var(--breath-fill)",
-                                    boxShadow: "var(--breath-shadow)",
-                                }}
-                                aria-label={locale === "no" ? "Pusteindikator" : "Breathing indicator"}
-                            />
-                        </div>
-
-                        {/* BOTTOM */}
-                        <div className="flex flex-col items-center justify-start pt-6">
-                            {showElements ? (
-                                <div className="w-full max-w-[360px] px-2">
-                                    <input
-                                        type="range"
-                                        min={MIN_SECONDS}
-                                        max={MAX_SECONDS}
-                                        value={sliderValue}
-                                        onChange={(e) => onSliderChange(Number(e.target.value))}
-                                        className="w-full accent-[color:var(--accent)]"
-                                        aria-label={t.speedAria}
-                                    />
-
-                                    {seconds !== DEFAULT_SECONDS && (
-                                        <div className="mt-3 flex justify-center">
-                                            <button
-                                                type="button"
-                                                onClick={() => setSeconds(DEFAULT_SECONDS)}
-                                                className={smallPill}
-                                            >
-                                                {t.resetSpeed}
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {/* Voice toggle */}
-                                    <div className="mt-6 flex flex-col items-center gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={async () => {
-                                                if (!isPro) return;
-
-                                                // extra kick i webviews
-                                                try {
-                                                    const s = window.speechSynthesis;
-                                                    s?.getVoices?.();
-                                                } catch { }
-
-                                                // WebAudio må init'es på user gesture
-                                                try {
-                                                    if (!breathRef.current) breathRef.current = new SoftBreath();
-                                                    await breathRef.current.init();
-                                                    breathRef.current.setVolume(0.18);
-                                                } catch { }
-
-                                                // Restart både anim og voice når du toggler
-                                                setAnimNonce((n) => n + 1);
-
-                                                // hvis vi skrur av: stopp SoftBreath scheduling umiddelbart
-                                                if (voiceEnabled) stopSoftBreath();
-
-                                                setVoiceEnabled((v) => !v);
-                                            }}
-                                            aria-label={locale === "no" ? "Stemmeguiding" : "Voice guidance"}
-                                            className={[
-                                                smallPill,
-                                                !isPro ? "opacity-50 cursor-not-allowed" : "",
-                                            ].join(" ")}
-                                        >
-                                            <span aria-hidden="true">{voiceEnabled && isPro ? "🔊" : "🔇"}</span>
-                                            <span>{locale === "no" ? "Stemmeguiding" : "Voice guidance"}</span>
-                                        </button>
-
-                                        {!isPro && (
-                                            <div className="text-center text-xs text-[var(--muted)]">
-                                                {locale === "no"
-                                                    ? "Stemmeguiding er tilgjengelig i Pro-versjonen."
-                                                    : "Voice guidance is available in the Pro version."}
-                                            </div>
-                                        )}
-
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setIsPro(!isPro);
-                                                setVoiceEnabled(false);
-                                                setAnimNonce((n) => n + 1);
-                                                stopSoftBreath();
-                                                try {
-                                                    window.speechSynthesis?.cancel();
-                                                } catch { }
-                                            }}
-                                            className={smallPill}
-                                        >
-                                            {isPro
-                                                ? locale === "no"
-                                                    ? "Deaktiver pro-demo"
-                                                    : "Deactivate pro-demo"
-                                                : locale === "no"
-                                                    ? "Aktiver pro-demo"
-                                                    : "Activate pro-demo"}
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="w-full" />
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Go back pinned bottom */}
-                    <div className="mt-6">
-                        <button
-                            type="button"
-                            onClick={() => router.push(`/?lang=${locale}`)}
-                            className={surfaceButton}
-                            aria-label={t.goBack}
-                        >
-                            {t.goBack}
-                        </button>
-                    </div>
-                </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setLocale("en");
+                  try {
+                    localStorage.setItem(STORAGE_KEY, "en");
+                  } catch {}
+                }}
+                aria-label="Switch to English"
+                className={langBtnClass(locale === "en")}
+              >
+                <img src="/flags/gb-eng.svg" alt="English" className="h-6 w-6 rounded-full" />
+              </button>
             </div>
-        </main>
-    );
+          </div>
+
+          {/* Layout: top / middle / bottom */}
+          <div className="flex-1 grid grid-rows-[clamp(150px,20vh,200px)_1fr_clamp(190px,26vh,260px)]">
+            {/* TOP */}
+            <div className="pt-12 text-center">
+              {showElements ? (
+                <>
+                  <div className="text-2xl font-semibold text-[var(--text)]">
+                    {t.breathingRoomTitle}
+                  </div>
+                  <div className="mt-1 text-sm italic text-[var(--muted)]">
+                    {t.followRhythm}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowElements(false)}
+                    className="mt-3 text-sm text-[var(--muted)] underline underline-offset-4 hover:opacity-90"
+                  >
+                    {t.hideElements}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowElements(true)}
+                  className="text-sm text-[var(--muted)] underline underline-offset-4 hover:opacity-90"
+                >
+                  {t.showElements}
+                </button>
+              )}
+            </div>
+
+            {/* MIDDLE */}
+            <div className="flex items-center justify-center">
+              <div
+                key={animNonce}
+                className="rounded-full w-[55vmin] h-[55vmin] max-w-[320px] max-h-[320px] will-change-transform"
+                style={{
+                  ...circleStyle,
+                  background: "var(--breath-fill)",
+                  boxShadow: "var(--breath-shadow)",
+                }}
+                aria-label={locale === "no" ? "Pusteindikator" : "Breathing indicator"}
+              />
+            </div>
+
+            {/* BOTTOM */}
+            <div className="flex flex-col items-center justify-start pt-6">
+              {showElements ? (
+                <div className="w-full max-w-[360px] px-2">
+                  <input
+                    type="range"
+                    min={MIN_SECONDS}
+                    max={MAX_SECONDS}
+                    value={sliderValue}
+                    onChange={(e) => onSliderChange(Number(e.target.value))}
+                    className="w-full accent-[color:var(--accent)]"
+                    aria-label={t.speedAria}
+                  />
+
+                  {seconds !== DEFAULT_SECONDS && (
+                    <div className="mt-3 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => setSeconds(DEFAULT_SECONDS)}
+                        className={smallPill}
+                      >
+                        {t.resetSpeed}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Voice toggle */}
+                  <div className="mt-6 flex flex-col items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!isPro) return;
+
+                        try {
+                          const s = window.speechSynthesis;
+                          s?.getVoices?.();
+                        } catch {}
+
+                        try {
+                          if (!breathRef.current) breathRef.current = new SoftBreath();
+                          await breathRef.current.init();
+                          breathRef.current.setVolume(0.18);
+                        } catch {}
+
+                        setAnimNonce((n) => n + 1);
+
+                        if (voiceEnabled) stopSoftBreath();
+                        setVoiceEnabled((v) => !v);
+                      }}
+                      aria-label={locale === "no" ? "Stemmeguiding" : "Voice guidance"}
+                      className={[smallPill, !isPro ? "opacity-50 cursor-not-allowed" : ""].join(" ")}
+                    >
+                      <span aria-hidden="true">{voiceEnabled && isPro ? "🔊" : "🔇"}</span>
+                      <span>{locale === "no" ? "Stemmeguiding" : "Voice guidance"}</span>
+                    </button>
+
+                    {!isPro && (
+                      <div className="text-center text-xs text-[var(--muted)]">
+                        {locale === "no"
+                          ? "Stemmeguiding er tilgjengelig i Pro-versjonen."
+                          : "Voice guidance is available in the Pro version."}
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPro(!isPro);
+                        setVoiceEnabled(false);
+                        setAnimNonce((n) => n + 1);
+                        stopSoftBreath();
+                        try {
+                          window.speechSynthesis?.cancel();
+                        } catch {}
+                      }}
+                      className={smallPill}
+                    >
+                      {isPro
+                        ? locale === "no"
+                          ? "Deaktiver pro-demo"
+                          : "Deactivate pro-demo"
+                        : locale === "no"
+                          ? "Aktiver pro-demo"
+                          : "Activate pro-demo"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full" />
+              )}
+            </div>
+          </div>
+
+          {/* Go back pinned bottom */}
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={() => router.push(`/?lang=${locale}`)}
+              className={surfaceButton}
+              aria-label={t.goBack}
+            >
+              {t.goBack}
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
 }

@@ -1,5 +1,6 @@
 // app/lib/appPrefs.ts
-export type ThemeSkin = "classic" | "floating" | "nature" | "nightfirst";
+
+export type ThemeSkin = "classic" | "floating" | "nature" | "nightpro";
 
 export const PREFS_KEYS = {
   proDemo: "pause-pro-demo",
@@ -22,24 +23,32 @@ export function writeLS(key: string, value: string) {
   } catch {}
 }
 
-// Lagres i LS som "nightfirst", men CSS-selectors i globals.css er "night-first" :contentReference[oaicite:7]{index=7}
-export function skinToCssValue(s: ThemeSkin): "classic" | "floating" | "nature" | "night-first" {
-  return s === "nightfirst" ? "night-first" : s;
+/**
+ * Vi lagrer ThemeSkin i LS som: "classic" | "floating" | "nature" | "nightpro"
+ * men CSS-selectors bruker kebab-case for night pro:
+ * html[data-skin="night-pro"]
+ */
+export function skinToCssValue(
+  s: ThemeSkin
+): "classic" | "floating" | "nature" | "night-pro" {
+  return s === "nightpro" ? "night-pro" : s;
 }
 
 export function applySkinToHtml(s: ThemeSkin) {
   if (typeof document === "undefined") return;
   const el = document.documentElement;
 
-  // Dette er det CSS faktisk matcher på (html[data-skin="..."]) :contentReference[oaicite:8]{index=8}
+  // CSS matcher: html[data-skin="..."]
   el.dataset.skin = skinToCssValue(s);
 }
 
 /**
- * Night-first skal bare være aktiv i dark. I light faller den tilbake til classic.
- * (Vi lar "nightfirst" fortsatt være valget i sheet, men resolved blir classic i light)
+ * Tidligere hadde vi "night-first" som auto-falt tilbake til classic i light.
+ * Nå er "nightpro" et helt vanlig skin (som floating/nature).
+ *
+ * Vi beholder funksjonen for å slippe å endre kallsteder,
+ * men den gjør ingen spesial-logikk lenger.
  */
-export function resolveSkinForMode(s: ThemeSkin, isDark: boolean): ThemeSkin {
-  if (s === "nightfirst") return isDark ? "nightfirst" : "classic";
+export function resolveSkinForMode(s: ThemeSkin, _isDark: boolean): ThemeSkin {
   return s;
 }

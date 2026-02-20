@@ -8,14 +8,17 @@ import {
   readLS,
   writeLS,
   applySkinToHtml,
-  resolveSkinForMode,
 } from "./lib/appPrefs";
 
 type AppPrefs = {
   proDemo: boolean;
   setProDemo: (v: boolean) => void;
-  skin: ThemeSkin; // "choice" (classic|floating|nature|nightfirst) - resolved via isDark
+
+  // valgt skin (classic|floating|nature|nightpro)
+  skin: ThemeSkin;
   setSkin: (s: ThemeSkin) => void;
+
+  // dark mode state (kommer fra <html class="dark">)
   isDark: boolean;
 };
 
@@ -24,6 +27,10 @@ const Ctx = createContext<AppPrefs | null>(null);
 function getIsDarkNow(): boolean {
   if (typeof document === "undefined") return false;
   return document.documentElement.classList.contains("dark");
+}
+
+function isThemeSkin(v: string | null): v is ThemeSkin {
+  return v === "classic" || v === "floating" || v === "nature" || v === "nightpro";
 }
 
 export default function AppProviders({ children }: { children: React.ReactNode }) {
@@ -39,18 +46,15 @@ export default function AppProviders({ children }: { children: React.ReactNode }
     const savedPro = readLS(PREFS_KEYS.proDemo);
     _setProDemo(savedPro === "1");
 
-    const savedSkin = readLS(PREFS_KEYS.themeSkin) as ThemeSkin | null;
-    const initial: ThemeSkin =
-      savedSkin === "classic" || savedSkin === "floating" || savedSkin === "nature" || savedSkin === "nightfirst"
-        ? savedSkin
-        : "classic";
+    const savedSkinRaw = readLS(PREFS_KEYS.themeSkin);
+    const initial: ThemeSkin = isThemeSkin(savedSkinRaw) ? savedSkinRaw : "classic";
 
-    const resolved = resolveSkinForMode(initial, darkNow);
-    _setSkin(resolved);
-    applySkinToHtml(resolved);
+    _setSkin(initial);
+    applySkinToHtml(initial);
   }, []);
 
   // keep isDark in sync if <html class="dark"> changes (ThemeToggle)
+  // IMPORTANT: do NOT change skin here — only update isDark + re-apply dataset
   useEffect(() => {
     if (typeof document === "undefined") return;
     const el = document.documentElement;
@@ -59,22 +63,14 @@ export default function AppProviders({ children }: { children: React.ReactNode }
       const nextDark = el.classList.contains("dark");
       setIsDark(nextDark);
 
-      _setSkin((current) => {
-        const resolved = resolveSkinForMode(current, nextDark);
-        if (resolved !== current) {
-          applySkinToHtml(resolved);
-          writeLS(PREFS_KEYS.themeSkin, resolved);
-          return resolved;
-        }
-        // selv om samme, sørg for at dataset matcher (nightfirst -> "night-first")
-        applySkinToHtml(current);
-        return current;
-      });
+      // keep dataset in sync (nightpro -> night-pro mapping)
+      applySkinToHtml(skin);
     });
 
     obs.observe(el, { attributes: true, attributeFilter: ["class"] });
     return () => obs.disconnect();
-  }, []);
+    // intentionally depend on `skin` so dataset is correct after skin changes too
+  }, [skin]);
 
   const setProDemo = (v: boolean) => {
     _setProDemo(v);
@@ -82,13 +78,15 @@ export default function AppProviders({ children }: { children: React.ReactNode }
   };
 
   const setSkin = (s: ThemeSkin) => {
-    const resolved = resolveSkinForMode(s, isDark);
-    _setSkin(resolved);
-    applySkinToHtml(resolved);
-    writeLS(PREFS_KEYS.themeSkin, resolved);
+    _setSkin(s);
+    applySkinToHtml(s);
+    writeLS(PREFS_KEYS.themeSkin, s);
   };
 
-  const value = useMemo(() => ({ proDemo, setProDemo, skin, setSkin, isDark }), [proDemo, skin, isDark]);
+  const value = useMemo(
+    () => ({ proDemo, setProDemo, skin, setSkin, isDark }),
+    [proDemo, skin, isDark]
+  );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

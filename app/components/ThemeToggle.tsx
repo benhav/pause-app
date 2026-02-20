@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAppPrefs } from "../AppProviders";
 
 const THEME_KEY = "pause-theme"; // "light" | "dark" | null(system)
 
@@ -8,23 +9,29 @@ type Theme = "light" | "dark";
 
 function getSystemTheme(): Theme {
   if (typeof window === "undefined") return "light";
-  return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
+  return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches
+    ? "dark"
+    : "light";
 }
 
 function applyHtmlTheme(mode: Theme | null) {
   const el = document.documentElement;
 
-  // Reset først
+  // reset først
   el.classList.remove("dark");
   el.classList.remove("light");
 
-  // Null = system (ingen class)
+  // null = system (ingen class)
   if (!mode) return;
 
   el.classList.add(mode);
 }
 
 export default function ThemeToggle() {
+
+  // 👇 NYTT: les valgt skin
+  const { skin } = useAppPrefs();
+
   const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<Theme>("light");
 
@@ -46,13 +53,13 @@ export default function ThemeToggle() {
       return;
     }
 
-    // Følg systemet (ingen class)
+    // Følg systemet
     const sys = getSystemTheme();
     setTheme(sys);
     applyHtmlTheme(null);
   }, []);
 
-  // Følg systemet hvis brukeren IKKE har lagret valg
+  // Følg system hvis ikke manuelt valgt
   useEffect(() => {
     if (!mounted) return;
 
@@ -72,17 +79,24 @@ export default function ThemeToggle() {
     const onChange = () => {
       const next = mq.matches ? "dark" : "light";
       setTheme(next);
-      applyHtmlTheme(null); // fortsatt system (ingen class)
+      applyHtmlTheme(null);
     };
 
     mq.addEventListener?.("change", onChange);
     return () => mq.removeEventListener?.("change", onChange);
   }, [mounted]);
 
+  // ⭐ NYTT:
+  // Night Pro styrer egen stemning → toggle skjules
+  if (skin === "nightpro") {
+    return null;
+  }
+
   const isDark = theme === "dark";
 
   const toggle = () => {
     const next: Theme = isDark ? "light" : "dark";
+
     setTheme(next);
     applyHtmlTheme(next);
 
@@ -91,9 +105,14 @@ export default function ThemeToggle() {
     } catch {}
   };
 
-  // Placeholder for å unngå hydration mismatch + layout jump
+  // Placeholder (hydration safe)
   if (!mounted) {
-    return <div className="h-8 w-[72px] rounded-full bg-neutral-100" aria-hidden="true" />;
+    return (
+      <div
+        className="h-8 w-[72px] rounded-full bg-neutral-100"
+        aria-hidden="true"
+      />
+    );
   }
 
   return (
@@ -106,8 +125,13 @@ export default function ThemeToggle() {
         "bg-neutral-100 shadow-sm ring-1 ring-neutral-200",
       ].join(" ")}
     >
-      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs opacity-60">☀️</span>
-      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs opacity-60">🌙</span>
+      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs opacity-60">
+        ☀️
+      </span>
+
+      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs opacity-60">
+        🌙
+      </span>
 
       <span
         className={[

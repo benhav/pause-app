@@ -1,12 +1,12 @@
 // app/lib/skin.ts
-export type Skin = "classic" | "floating" | "nature" | "night-first";
+export type Skin = "classic" | "floating" | "nature" | "night-pro";
 
 export const SKIN_KEY = "pause-skin";
 
 export function normalizeSkin(v: string | null | undefined): Skin {
-  if (v === "classic" || v === "floating" || v === "nature" || v === "night-first") return v;
+  if (v === "classic" || v === "floating" || v === "nature" || v === "night-pro") return v;
   // støtt gamle navn så du slipper kluss
-  if (v === "nightfirst") return "night-first";
+  if (v === "nightpro") return "night-pro";
   return "classic";
 }
 
@@ -25,7 +25,7 @@ function prefersDark() {
 
 export function getEffectiveSkin(skin: Skin): Skin {
   // Night-first: dark når system er dark, ellers classic
-  if (skin === "night-first") return prefersDark() ? "night-first" : "classic";
+  if (skin === "night-pro") return prefersDark() ? "night-pro" : "classic";
   return skin;
 }
 
