@@ -42,7 +42,7 @@ export default function TopRow({
       <button
         onClick={onBack}
         className={[
-          "hidden sm:inline-flex absolute rounded-xl px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50",
+          "hidden x1:inline-flex absolute rounded-xl px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50",
           showHome ? "left-10" : "left-0",
         ].join(" ")}
         aria-label={t.goBack}

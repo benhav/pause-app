@@ -1,4 +1,3 @@
-// app/HomeClient.tsx
 "use client";
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
@@ -190,7 +189,7 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
     }, [locale, choice.load, step, choice.capacity, choice.boundary]);
 
     const footer = (
-        <div className="mt-6 text-center text-xs text-neutral-400">
+        <div className="mt-6 text-center text-xs text-neutral-400 md:text-sm">
             {t.phaseLine}
             <button
                 onClick={() => {
@@ -220,43 +219,54 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
         <main
             className={[
                 "min-h-[100svh] w-full",
-                // Mobil: ingen “ramme”
+                // Mobil (default): uendret
                 "px-0 py-0",
-                // Desktop+: kort i midten som før
-                "sm:flex sm:items-center sm:justify-center sm:px-4 sm:py-6 sm:pt-6",
+                // ✅ Tablet: litt “luft” + mer sentrert opplevelse uten å bli “desktop-kort”
+                "md:px-8 md:py-10",
+                // ✅ Kun store skjermer: valgfritt “kort i midten” (desktop er uinteressant, så vi skyver det opp)
+                "xl:flex xl:items-center xl:justify-center xl:px-4 xl:py-6 xl:pt-6",
             ].join(" ")}
         >
-            <div className="w-full sm:max-w-md pb-[env(safe-area-inset-bottom)]">
+            <div
+                className={[
+                    "w-full pb-[env(safe-area-inset-bottom)]",
+                    // ✅ Tablet: begrens bredde litt + sentrer
+                    "md:max-w-[680px] md:mx-auto",
+                    // ✅ Desktop (om du bryr deg): samme som før
+                    "xl:max-w-md",
+                ].join(" ")}
+            >
                 <Card>
                     {step === "welcome" && (
                         <>
-                            <div className="pt-16 sm:pt-0" />
+                            {/* Mobil: som før. Tablet: litt mindre “luft” på toppen */}
+                            <div className="pt-16 md:pt-10 xl:pt-0" />
 
                             <Title>Pause</Title>
 
                             <div className="pt-3" />
-                            <div className="text-center text-lg sm:text-base">
+                            <div className="text-center text-lg md:text-xl xl:text-base">
                                 <Subtitle>{t.subtitle}</Subtitle>
                             </div>
 
                             {/* Theme button pinned bottom (kun welcome) */}
-                            <div className="absolute bottom-6 left-0 right-0 px-6">
+                            <div className="absolute bottom-6 left-0 right-0 px-6 md:px-10">
                                 <button
                                     type="button"
                                     onClick={() => setThemeOpen(true)}
-                                    className="w-full rounded-2xl px-4 py-4 text-sm border bg-[var(--surface)] text-[var(--text)] border-[color:var(--border)]"
+                                    className="w-full rounded-2xl px-4 py-4 md:py-5 md:text-base text-sm border bg-[var(--surface)] text-[var(--text)] border-[color:var(--border)]"
                                     aria-label={t.themeTitle}
                                 >
                                     {t.themeTitle}
                                 </button>
                             </div>
 
-
                             <ThemeSheet
                                 open={themeOpen}
                                 onClose={() => setThemeOpen(false)}
                                 locale={locale}
                             />
+
                             {/* Breathing room shortcut */}
                             <div className="absolute left-3 top-2">
                                 <button
@@ -264,7 +274,7 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
                                     onClick={() => router.push(`/breathingroom?lang=${locale}`)}
                                     aria-label={locale === "no" ? "Åpne pusterom" : "Open breathing room"}
                                     className={[
-                                        "h-10 w-10 flex items-center justify-center rounded-full",
+                                        "h-10 w-10 md:h-11 md:w-11 flex items-center justify-center rounded-full",
                                         "border border-[color:var(--border)]",
                                         "bg-[var(--surface)]",
                                         "hover:bg-[var(--surface-hover)]",
@@ -291,7 +301,7 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
                                                 : "ring-1 ring-[color:var(--border)]",
                                         ].join(" ")}
                                     >
-                                        <img src="/flags/nor.svg" alt="Norsk" className="h-6 w-6 rounded-full" />
+                                        <img src="/flags/nor.svg" alt="Norsk" className="h-6 w-6 md:h-7 md:w-7 rounded-full" />
                                     </button>
 
                                     <button
@@ -305,21 +315,21 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
                                                 : "ring-1 ring-[color:var(--border)]",
                                         ].join(" ")}
                                     >
-                                        <img src="/flags/gb-eng.svg" alt="English" className="h-6 w-6 rounded-full" />
+                                        <img src="/flags/gb-eng.svg" alt="English" className="h-6 w-6 md:h-7 md:w-7 rounded-full" />
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="pt-8" />
+                            <div className="pt-8 md:pt-10" />
 
-                            <div className="mt-4 text-center text-sm sm:text-base text-[var(--muted)]">
+                            <div className="mt-4 text-center text-sm md:text-base xl:text-base text-[var(--muted)]">
                                 {t.justForTodayA}
                                 <br />
                                 <div className="pt-2" />
                                 {t.justForTodayB}
                             </div>
 
-                            <div className="mt-8">
+                            <div className="mt-8 md:mt-10">
                                 <PrimaryButton onClick={() => setStep("capacity")} ariaLabel={t.begin}>
                                     {t.begin}
                                 </PrimaryButton>
@@ -336,7 +346,7 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
                             <Title>{t.today}</Title>
                             <Question>{t.qCapacity}</Question>
 
-                            <div className="mt-10 space-y-3">
+                            <div className="mt-10 md:mt-20 space-y-3 md:space-y-6">
                                 <ChoiceButton
                                     selected={choice.capacity === "Very low"}
                                     onClick={() => {
@@ -379,7 +389,7 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
                             <Title>{t.today}</Title>
                             <Question>{t.qLoad}</Question>
 
-                            <div className="mt-6 space-y-3">
+                            <div className="mt-6 md:mt-20 space-y-3 md:space-y-6">
                                 {(
                                     [
                                         "Mind racing",
@@ -403,7 +413,7 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
                                 ))}
                             </div>
 
-                            <div className="mt-6 sm:hidden">
+                            <div className="mt-6 x1:hidden">
                                 <SecondaryButton onClick={() => setStep("capacity")} ariaLabel={t.goBack}>
                                     {t.goBack}
                                 </SecondaryButton>
@@ -420,13 +430,13 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
                             <Title>{t.today}</Title>
                             <Question>{t.qBoundary}</Question>
 
-                            <div className="mt-4 text-sm text-neutral-600">{t.optional}</div>
+                            <div className="mt-4 text-sm md:text-base text-neutral-600">{t.optional}</div>
 
-                            <div className="mt-6 pb-40 sm:pb-0">
+                            <div className="mt-6 pb-40 sm:pb-0 md:mt-20">
                                 <textarea
                                     aria-label="Boundary"
                                     className={[
-                                        "w-full rounded-xl p-3 text-base leading-6 outline-none",
+                                        "w-full rounded-xl p-3 md:p-4 text-base md:text-lg leading-6 outline-none",
                                         "border border-neutral-200 bg-[var(--app-bg)] text-neutral-900 placeholder-neutral-400",
                                         "focus:ring-2 focus:ring-neutral-200",
 
@@ -456,7 +466,7 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
                                     </PrimaryButton>
                                 </div>
 
-                                <div className="mt-6 sm:hidden">
+                                <div className="mt-6 x1:hidden">
                                     <SecondaryButton onClick={() => setStep("load")} ariaLabel={t.goBack}>
                                         {t.goBack}
                                     </SecondaryButton>
@@ -469,31 +479,31 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
                         <div className="fade-in">
                             <TopRow onBack={() => setStep("boundary")} onHome={() => setStep("welcome")} showHome locale={locale} />
                             <ProgressDots current={4} total={4} />
-                            <div className="mt-1 mb-4" />
+                            <div className="mt-1 mb-4 md:mt-2" />
 
                             <Title>{t.today}</Title>
 
-                            <div className="mt-5 rounded-2xl bg-neutral-50 p-5">
-                                <div className="text-sm text-neutral-700">
+                            <div className="mt-5 rounded-2xl bg-neutral-50 p-5 md:p-6">
+                                <div className="text-sm md:text-base text-neutral-700">
                                     <b>{safeResult.validation}</b>
                                 </div>
 
-                                <div className="mt-5 text-xs text-neutral-500 tracking-wide">{t.gentleLabel}</div>
-                                <div className="mt-2 text-sm text-neutral-700">{safeResult.advice}</div>
+                                <div className="mt-5 text-xs md:text-sm text-neutral-500 tracking-wide">{t.gentleLabel}</div>
+                                <div className="mt-2 text-sm md:text-base text-neutral-700">{safeResult.advice}</div>
 
                                 {hasBoundary ? (
                                     <>
-                                        <div className="mt-6 text-xs text-neutral-500 tracking-wide">{t.doNotPushLabel}</div>
-                                        <div className="mt-2 text-sm text-neutral-700">{choice.boundary.trim()}</div>
+                                        <div className="mt-6 text-xs md:text-sm text-neutral-500 tracking-wide">{t.doNotPushLabel}</div>
+                                        <div className="mt-2 text-sm md:text-base text-neutral-700">{choice.boundary.trim()}</div>
                                     </>
                                 ) : (
-                                    <div className="mt-6 text-center text-xs text-neutral-400">{t.nothingAddedHint}</div>
+                                    <div className="mt-6 text-center text-xs md:text-sm text-neutral-400">{t.nothingAddedHint}</div>
                                 )}
                             </div>
 
-                            <div className="mt-6 text-center text-sm text-neutral-600">{safeResult.end}</div>
+                            <div className="mt-6 text-center text-sm md:text-base text-neutral-600">{safeResult.end}</div>
 
-                            <div className="mt-6 space-y-3">
+                            <div className="mt-6 space-y-3 md:space-y-6">
                                 <PrimaryButton onClick={() => router.push(`/breathingroom?lang=${locale}`)} ariaLabel={t.openBreathingRoom}>
                                     {t.breathingRoom}
                                 </PrimaryButton>

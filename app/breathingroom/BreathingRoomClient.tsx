@@ -297,7 +297,7 @@ export default function BreathingRoomClient() {
     ].join(" ");
 
   const surfaceButton = [
-    "w-full rounded-2xl px-4 py-4 text-sm",
+    "w-full rounded-2xl px-4 py-4 text-sm md:text-base md:py-5",
     "border bg-[var(--surface)] text-[var(--text)]",
     "border-[color:var(--border)]",
     "hover:bg-[var(--surface-hover)]",
@@ -308,17 +308,37 @@ export default function BreathingRoomClient() {
 
   const smallPill = [
     "inline-flex items-center justify-center gap-2",
-    "rounded-full border px-3 py-2 text-xs",
+    "rounded-full border px-3 py-2 text-xs md:text-sm md:px-4 md:py-2.5",
     "border-[color:var(--border)] bg-[var(--surface)] text-[var(--text)]",
     "hover:bg-[var(--surface-hover)]",
   ].join(" ");
 
   return (
-    <main className="min-h-[100svh] w-full px-0 py-0 sm:flex sm:items-center sm:justify-center sm:px-4 sm:py-6 sm:pt-6">
-      <div className="w-full sm:max-w-md pb-[env(safe-area-inset-bottom)]">
+    <main
+      className={[
+        "min-h-[100svh] w-full",
+        // Mobil: uendret
+        "px-0 py-0",
+        // ✅ Tablet: litt luft rundt, men ikke “desktop”
+        "md:px-6 md:py-6",
+        // ✅ Store skjermer: behold eksisterende “kort i midten” (som før)
+        "sm:flex sm:items-center sm:justify-center sm:px-4 sm:py-6 sm:pt-6",
+      ].join(" ")}
+    >
+      <div
+        className={[
+          "w-full pb-[env(safe-area-inset-bottom)]",
+          // ✅ Tablet: litt bredere enn mobil og sentrert
+          "md:max-w-3xl md:mx-auto",
+          // ✅ Eksisterende desktop-width
+          "sm:max-w-md",
+        ].join(" ")}
+      >
         <div
           className={[
             "relative w-full min-h-[100svh] rounded-none p-6",
+            // ✅ Tablet: litt mer luft
+            "md:p-8",
             // VIKTIG: bruk surface (semi-transparent) så bakgrunnsbildet under synes
             "bg-[var(--surface)] text-[var(--text)] backdrop-blur-xl",
             "sm:min-h-0 sm:rounded-3xl sm:shadow-sm sm:ring-1 sm:ring-[color:var(--border)]",
@@ -326,7 +346,7 @@ export default function BreathingRoomClient() {
           ].join(" ")}
         >
           {/* Top controls */}
-          <div className="absolute right-3 top-2 flex items-center gap-3">
+          <div className="absolute right-3 top-2 flex items-center gap-3 md:right-5 md:top-3">
             <div className="flex gap-2">
               <button
                 type="button"
@@ -339,7 +359,11 @@ export default function BreathingRoomClient() {
                 aria-label="Switch to Norwegian"
                 className={langBtnClass(locale === "no")}
               >
-                <img src="/flags/nor.svg" alt="Norsk" className="h-6 w-6 rounded-full" />
+                <img
+                  src="/flags/nor.svg"
+                  alt="Norsk"
+                  className="h-6 w-6 md:h-7 md:w-7 rounded-full"
+                />
               </button>
 
               <button
@@ -353,28 +377,32 @@ export default function BreathingRoomClient() {
                 aria-label="Switch to English"
                 className={langBtnClass(locale === "en")}
               >
-                <img src="/flags/gb-eng.svg" alt="English" className="h-6 w-6 rounded-full" />
+                <img
+                  src="/flags/gb-eng.svg"
+                  alt="English"
+                  className="h-6 w-6 md:h-7 md:w-7 rounded-full"
+                />
               </button>
             </div>
           </div>
 
           {/* Layout: top / middle / bottom */}
-          <div className="flex-1 grid grid-rows-[clamp(150px,20vh,200px)_1fr_clamp(190px,26vh,260px)]">
+          <div className="flex-1 grid grid-rows-[clamp(150px,20vh,200px)_1fr_clamp(190px,26vh,260px)] md:grid-rows-[clamp(150px,18vh,210px)_1fr_clamp(210px,28vh,300px)]">
             {/* TOP */}
-            <div className="pt-12 text-center">
+            <div className="pt-12 text-center md:pt-10">
               {showElements ? (
                 <>
-                  <div className="text-2xl font-semibold text-[var(--text)]">
+                  <div className="text-2xl md:text-3xl font-semibold text-[var(--text)]">
                     {t.breathingRoomTitle}
                   </div>
-                  <div className="mt-1 text-sm italic text-[var(--muted)]">
+                  <div className="mt-1 text-sm md:text-base italic text-[var(--muted)]">
                     {t.followRhythm}
                   </div>
 
                   <button
                     type="button"
                     onClick={() => setShowElements(false)}
-                    className="mt-3 text-sm text-[var(--muted)] underline underline-offset-4 hover:opacity-90"
+                    className="mt-3 text-sm md:text-base text-[var(--muted)] underline underline-offset-4 hover:opacity-90"
                   >
                     {t.hideElements}
                   </button>
@@ -383,7 +411,7 @@ export default function BreathingRoomClient() {
                 <button
                   type="button"
                   onClick={() => setShowElements(true)}
-                  className="text-sm text-[var(--muted)] underline underline-offset-4 hover:opacity-90"
+                  className="text-sm md:text-base text-[var(--muted)] underline underline-offset-4 hover:opacity-90"
                 >
                   {t.showElements}
                 </button>
@@ -394,7 +422,13 @@ export default function BreathingRoomClient() {
             <div className="flex items-center justify-center">
               <div
                 key={animNonce}
-                className="rounded-full w-[55vmin] h-[55vmin] max-w-[320px] max-h-[320px] will-change-transform"
+                className={[
+                  "rounded-full will-change-transform",
+                  // Mobil: uendret
+                  "w-[55vmin] h-[55vmin] max-w-[320px] max-h-[320px]",
+                  // ✅ Tablet: større sirkel
+                  "md:w-[44vmin] md:h-[44vmin] md:max-w-[420px] md:max-h-[420px]",
+                ].join(" ")}
                 style={{
                   ...circleStyle,
                   background: "var(--breath-fill)",
@@ -405,9 +439,9 @@ export default function BreathingRoomClient() {
             </div>
 
             {/* BOTTOM */}
-            <div className="flex flex-col items-center justify-start pt-6">
+            <div className="flex flex-col items-center justify-start pt-6 md:pt-8">
               {showElements ? (
-                <div className="w-full max-w-[360px] px-2">
+                <div className="w-full max-w-[360px] px-2 md:max-w-[520px] md:px-6">
                   <input
                     type="range"
                     min={MIN_SECONDS}
@@ -431,7 +465,7 @@ export default function BreathingRoomClient() {
                   )}
 
                   {/* Voice toggle */}
-                  <div className="mt-6 flex flex-col items-center gap-3">
+                  <div className="mt-6 flex flex-col items-center gap-3 md:gap-4">
                     <button
                       type="button"
                       onClick={async () => {
@@ -461,7 +495,7 @@ export default function BreathingRoomClient() {
                     </button>
 
                     {!isPro && (
-                      <div className="text-center text-xs text-[var(--muted)]">
+                      <div className="text-center text-xs md:text-sm text-[var(--muted)]">
                         {locale === "no"
                           ? "Stemmeguiding er tilgjengelig i Pro-versjonen."
                           : "Voice guidance is available in the Pro version."}
@@ -498,7 +532,7 @@ export default function BreathingRoomClient() {
           </div>
 
           {/* Go back pinned bottom */}
-          <div className="mt-6">
+          <div className="mt-6 md:mt-10">
             <button
               type="button"
               onClick={() => router.push(`/?lang=${locale}`)}

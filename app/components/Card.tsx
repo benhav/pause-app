@@ -4,12 +4,8 @@ export default function Card({ children }: { children: ReactNode }) {
   return (
     <div
       className={[
-        // Mobile: fullskjerm "sheet"
         "relative w-full min-h-[100svh] rounded-none p-6",
-        "bg-[var(--card-bg)] border-[color:var(--card-border)]",
-
-        // Desktop+: kort-stil
-        "sm:min-h-0 sm:rounded-3xl sm:shadow-sm sm:ring-1 sm:ring-[color:var(--ring)]",
+        "bg-transparent", // <- nøkkel for å unngå “kort”
       ].join(" ")}
     >
       {children}

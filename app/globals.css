@@ -1,4 +1,3 @@
-
 @import "tailwindcss";
 
 /* =========================================================
@@ -23,13 +22,11 @@
   --bg-opacity: 1;
 
   /* BreathingRoom circle */
-  --breath-fill: radial-gradient(
-    circle at 35% 30%,
-    rgba(255, 255, 255, 0.98),
-    rgba(186, 230, 253, 0.95) 35%,
-    rgba(125, 211, 252, 0.88) 70%,
-    rgba(56, 189, 248, 0.78)
-  );
+  --breath-fill: radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.98),
+      rgba(186, 230, 253, 0.95) 35%,
+      rgba(125, 211, 252, 0.88) 70%,
+      rgba(56, 189, 248, 0.78));
   --breath-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
@@ -38,9 +35,17 @@
    Theme Sheet
    ========================================================= */
 
-:root { --sheet-bg: rgba(255,255,255,0.92); }
-html.dark { --sheet-bg: rgba(10,14,16,0.92); }
-html[data-skin="night-pro"] { --sheet-bg: rgba(10,14,16,0.92); }
+:root {
+  --sheet-bg: rgba(255, 255, 255, 0.92);
+}
+
+html.dark {
+  --sheet-bg: rgba(10, 14, 16, 0.92);
+}
+
+html[data-skin="night-pro"] {
+  --sheet-bg: rgba(10, 14, 16, 0.92);
+}
 
 
 
@@ -64,18 +69,16 @@ html[data-skin="night-pro"] { --sheet-bg: rgba(10,14,16,0.92); }
 
     /* Classic dark background layer */
     --bg-layer:
-      radial-gradient(900px 520px at 50% -80px, rgba(96,165,250,0.10), transparent 60%),
-      radial-gradient(900px 700px at 20% 65%, rgba(16,185,129,0.06), transparent 60%),
-      radial-gradient(900px 700px at 80% 65%, rgba(59,130,246,0.06), transparent 60%),
+      radial-gradient(900px 520px at 50% -80px, rgba(96, 165, 250, 0.10), transparent 60%),
+      radial-gradient(900px 700px at 20% 65%, rgba(16, 185, 129, 0.06), transparent 60%),
+      radial-gradient(900px 700px at 80% 65%, rgba(59, 130, 246, 0.06), transparent 60%),
       linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
 
-    --breath-fill: radial-gradient(
-      circle at 35% 30%,
-      rgba(255,255,255,0.18),
-      rgba(96,165,250,0.16) 35%,
-      rgba(59,130,246,0.14) 65%,
-      rgba(16,185,129,0.10)
-    );
+    --breath-fill: radial-gradient(circle at 35% 30%,
+        rgba(255, 255, 255, 0.18),
+        rgba(96, 165, 250, 0.16) 35%,
+        rgba(59, 130, 246, 0.14) 65%,
+        rgba(16, 185, 129, 0.10));
     --breath-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
   }
 }
@@ -101,9 +104,9 @@ html.light {
 
   /* Classic light background layer */
   --bg-layer:
-    radial-gradient(1200px 700px at 30% 10%, rgba(14,165,233,0.10), transparent 60%),
-    radial-gradient(900px 600px at 70% 30%, rgba(14,165,233,0.06), transparent 60%),
-    linear-gradient(180deg, rgba(255,255,255,1), rgba(255,255,255,1));
+    radial-gradient(1200px 700px at 30% 10%, rgba(14, 165, 233, 0.10), transparent 60%),
+    radial-gradient(900px 600px at 70% 30%, rgba(14, 165, 233, 0.06), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 255, 255, 1));
 }
 
 html.dark {
@@ -121,18 +124,16 @@ html.dark {
 
   /* Classic dark background layer */
   --bg-layer:
-    radial-gradient(900px 520px at 50% -80px, rgba(96,165,250,0.10), transparent 60%),
-    radial-gradient(900px 700px at 20% 65%, rgba(16,185,129,0.06), transparent 60%),
-    radial-gradient(900px 700px at 80% 65%, rgba(59,130,246,0.06), transparent 60%),
+    radial-gradient(900px 520px at 50% -80px, rgba(96, 165, 250, 0.10), transparent 60%),
+    radial-gradient(900px 700px at 20% 65%, rgba(16, 185, 129, 0.06), transparent 60%),
+    radial-gradient(900px 700px at 80% 65%, rgba(59, 130, 246, 0.06), transparent 60%),
     linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
 
-  --breath-fill: radial-gradient(
-    circle at 35% 30%,
-    rgba(255,255,255,0.18),
-    rgba(96,165,250,0.16) 35%,
-    rgba(59,130,246,0.14) 65%,
-    rgba(16,185,129,0.10)
-  );
+  --breath-fill: radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.18),
+      rgba(96, 165, 250, 0.16) 35%,
+      rgba(59, 130, 246, 0.14) 65%,
+      rgba(16, 185, 129, 0.10));
   --breath-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
 }
 
@@ -155,10 +156,10 @@ body::before {
   background: var(--bg-layer, none);
   opacity: var(--bg-opacity, 1);
 
-background: var(--bg-layer);
-background-size: cover;
-background-position: center;
-background-repeat: no-repeat;
+  background: var(--bg-layer);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 
 }
 
@@ -167,6 +168,22 @@ main {
   position: relative;
   z-index: 1;
 }
+
+
+/* iOS/iPadOS: stabil viewport-høyde (hindrer rare “kutt”/scroll-bugs) */
+html,
+body {
+  height: 100%;
+}
+
+@supports (-webkit-touch-callout: none) {
+  body {
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+  }
+}
+
+
 
 /* =========================================================
    SKINS (html[data-skin="..."])
@@ -181,24 +198,22 @@ html[data-skin="floating"] {
   --ring: rgba(14, 165, 233, 0.55);
 
   --bg-layer:
-    radial-gradient(1100px 800px at 50% 15%, rgba(14,165,233,0.18), transparent 62%),
-    radial-gradient(900px 700px at 30% 45%, rgba(14,165,233,0.10), transparent 62%),
-    radial-gradient(800px 600px at 80% 55%, rgba(14,165,233,0.08), transparent 62%),
+    radial-gradient(1100px 800px at 50% 15%, rgba(14, 165, 233, 0.18), transparent 62%),
+    radial-gradient(900px 700px at 30% 45%, rgba(14, 165, 233, 0.10), transparent 62%),
+    radial-gradient(800px 600px at 80% 55%, rgba(14, 165, 233, 0.08), transparent 62%),
     repeating-radial-gradient(circle at 50% 20%,
-      rgba(14,165,233,0.06) 0px,
-      rgba(14,165,233,0.06) 2px,
+      rgba(14, 165, 233, 0.06) 0px,
+      rgba(14, 165, 233, 0.06) 2px,
       transparent 10px,
       transparent 26px),
-    linear-gradient(180deg, rgba(255,255,255,1), rgba(248,251,255,1));
+    linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(248, 251, 255, 1));
 
-  --breath-fill: radial-gradient(
-    circle at 35% 30%,
-    rgba(255,255,255,0.98),
-    rgba(186,230,253,0.92) 35%,
-    rgba(125,211,252,0.84) 70%,
-    rgba(56,189,248,0.72)
-  );
-  --breath-shadow: 0 14px 40px rgba(14,165,233,0.10);
+  --breath-fill: radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.98),
+      rgba(186, 230, 253, 0.92) 35%,
+      rgba(125, 211, 252, 0.84) 70%,
+      rgba(56, 189, 248, 0.72));
+  --breath-shadow: 0 14px 40px rgba(14, 165, 233, 0.10);
 }
 
 /* ---------- FLOATING (night) ---------- */
@@ -206,48 +221,44 @@ html.dark[data-skin="floating"] {
   --app-bg: #07111f;
 
   --bg-layer:
-    radial-gradient(900px 520px at 50% -80px, rgba(96,165,250,0.14), transparent 60%),
-    radial-gradient(900px 700px at 20% 65%, rgba(16,185,129,0.06), transparent 60%),
-    radial-gradient(900px 700px at 80% 65%, rgba(59,130,246,0.08), transparent 60%),
+    radial-gradient(900px 520px at 50% -80px, rgba(96, 165, 250, 0.14), transparent 60%),
+    radial-gradient(900px 700px at 20% 65%, rgba(16, 185, 129, 0.06), transparent 60%),
+    radial-gradient(900px 700px at 80% 65%, rgba(59, 130, 246, 0.08), transparent 60%),
     repeating-radial-gradient(circle at 50% 20%,
-      rgba(96,165,250,0.06) 0px,
-      rgba(96,165,250,0.06) 2px,
+      rgba(96, 165, 250, 0.06) 0px,
+      rgba(96, 165, 250, 0.06) 2px,
       transparent 10px,
       transparent 28px),
     linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
 
   --ring: rgba(96, 165, 250, 0.50);
 
-  --breath-fill: radial-gradient(
-    circle at 35% 30%,
-    rgba(255,255,255,0.18),
-    rgba(96,165,250,0.16) 35%,
-    rgba(59,130,246,0.14) 65%,
-    rgba(16,185,129,0.10)
-  );
+  --breath-fill: radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.18),
+      rgba(96, 165, 250, 0.16) 35%,
+      rgba(59, 130, 246, 0.14) 65%,
+      rgba(16, 185, 129, 0.10));
   --breath-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
 }
 
 /* ---------- NATURE (day) ---------- */
 html[data-skin="nature"] {
-  --ring: rgba(47,133,90,0.55);
+  --ring: rgba(47, 133, 90, 0.55);
 
   --bg-layer:
-    radial-gradient(1100px 800px at 45% 10%, rgba(47,133,90,0.16), transparent 62%),
-    radial-gradient(900px 700px at 20% 55%, rgba(47,133,90,0.10), transparent 62%),
-    radial-gradient(900px 700px at 80% 55%, rgba(47,133,90,0.08), transparent 62%),
-    conic-gradient(from 180deg at 20% 25%, rgba(47,133,90,0.08), transparent 40%, rgba(47,133,90,0.06)),
-    conic-gradient(from 220deg at 80% 30%, rgba(47,133,90,0.07), transparent 45%, rgba(47,133,90,0.05)),
-    linear-gradient(180deg, rgba(255,255,255,1), rgba(249,255,251,1));
+    radial-gradient(1100px 800px at 45% 10%, rgba(47, 133, 90, 0.16), transparent 62%),
+    radial-gradient(900px 700px at 20% 55%, rgba(47, 133, 90, 0.10), transparent 62%),
+    radial-gradient(900px 700px at 80% 55%, rgba(47, 133, 90, 0.08), transparent 62%),
+    conic-gradient(from 180deg at 20% 25%, rgba(47, 133, 90, 0.08), transparent 40%, rgba(47, 133, 90, 0.06)),
+    conic-gradient(from 220deg at 80% 30%, rgba(47, 133, 90, 0.07), transparent 45%, rgba(47, 133, 90, 0.05)),
+    linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(249, 255, 251, 1));
 
-  --breath-fill: radial-gradient(
-    circle at 35% 30%,
-    rgba(255,255,255,0.98),
-    rgba(187,247,208,0.55) 40%,
-    rgba(134,239,172,0.35) 70%,
-    rgba(47,133,90,0.18)
-  );
-  --breath-shadow: 0 14px 40px rgba(47,133,90,0.10);
+  --breath-fill: radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.98),
+      rgba(187, 247, 208, 0.55) 40%,
+      rgba(134, 239, 172, 0.35) 70%,
+      rgba(47, 133, 90, 0.18));
+  --breath-shadow: 0 14px 40px rgba(47, 133, 90, 0.10);
 }
 
 /* ---------- NATURE (night) ---------- */
@@ -255,22 +266,20 @@ html.dark[data-skin="nature"] {
   --app-bg: #06150f;
 
   --bg-layer:
-    radial-gradient(900px 520px at 50% -80px, rgba(52,211,153,0.12), transparent 60%),
-    radial-gradient(900px 700px at 20% 65%, rgba(16,185,129,0.10), transparent 60%),
-    radial-gradient(900px 700px at 80% 65%, rgba(34,197,94,0.08), transparent 60%),
-    conic-gradient(from 180deg at 20% 25%, rgba(52,211,153,0.06), transparent 45%, rgba(16,185,129,0.05)),
-    conic-gradient(from 220deg at 80% 30%, rgba(52,211,153,0.05), transparent 50%, rgba(34,197,94,0.04)),
+    radial-gradient(900px 520px at 50% -80px, rgba(52, 211, 153, 0.12), transparent 60%),
+    radial-gradient(900px 700px at 20% 65%, rgba(16, 185, 129, 0.10), transparent 60%),
+    radial-gradient(900px 700px at 80% 65%, rgba(34, 197, 94, 0.08), transparent 60%),
+    conic-gradient(from 180deg at 20% 25%, rgba(52, 211, 153, 0.06), transparent 45%, rgba(16, 185, 129, 0.05)),
+    conic-gradient(from 220deg at 80% 30%, rgba(52, 211, 153, 0.05), transparent 50%, rgba(34, 197, 94, 0.04)),
     linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
 
   --ring: rgba(52, 211, 153, 0.45);
 
-  --breath-fill: radial-gradient(
-    circle at 35% 30%,
-    rgba(255,255,255,0.16),
-    rgba(52,211,153,0.14) 35%,
-    rgba(16,185,129,0.12) 65%,
-    rgba(34,197,94,0.08)
-  );
+  --breath-fill: radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.16),
+      rgba(52, 211, 153, 0.14) 35%,
+      rgba(16, 185, 129, 0.12) 65%,
+      rgba(34, 197, 94, 0.08));
   --breath-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
 }
 
@@ -279,30 +288,28 @@ html.dark[data-skin="nature"] {
 */
 html[data-skin="night-pro"] {
   --app-bg: #070a0c;
-  --text: rgba(255,255,255,0.92);
-  --muted: rgba(255,255,255,0.65);
-  --border: rgba(255,255,255,0.12);
+  --text: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.65);
+  --border: rgba(255, 255, 255, 0.12);
 
-  --surface: rgba(10,14,16,0.72);
-  --surface-2: rgba(10,14,16,0.55);
-  --surface-hover: rgba(10,14,16,0.82);
-  --press: rgba(255,255,255,0.06);
+  --surface: rgba(10, 14, 16, 0.72);
+  --surface-2: rgba(10, 14, 16, 0.55);
+  --surface-hover: rgba(10, 14, 16, 0.82);
+  --press: rgba(255, 255, 255, 0.06);
 
-  --ring: rgba(96,165,250,0.55);
+  --ring: rgba(96, 165, 250, 0.55);
 
   --bg-layer:
-    radial-gradient(1200px 800px at 50% 0%, rgba(96,165,250,0.12), transparent 60%),
-    radial-gradient(900px 700px at 20% 60%, rgba(16,185,129,0.08), transparent 60%),
-    radial-gradient(900px 700px at 80% 65%, rgba(96,165,250,0.06), transparent 60%),
+    radial-gradient(1200px 800px at 50% 0%, rgba(96, 165, 250, 0.12), transparent 60%),
+    radial-gradient(900px 700px at 20% 60%, rgba(16, 185, 129, 0.08), transparent 60%),
+    radial-gradient(900px 700px at 80% 65%, rgba(96, 165, 250, 0.06), transparent 60%),
     linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
 
-  --breath-fill: radial-gradient(
-    circle at 35% 30%,
-    rgba(255,255,255,0.18),
-    rgba(96,165,250,0.16) 35%,
-    rgba(59,130,246,0.14) 65%,
-    rgba(16,185,129,0.10)
-  );
+  --breath-fill: radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.18),
+      rgba(96, 165, 250, 0.16) 35%,
+      rgba(59, 130, 246, 0.14) 65%,
+      rgba(16, 185, 129, 0.10));
   --breath-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
 }
 
@@ -311,42 +318,101 @@ html[data-skin="night-pro"] {
    ========================================================= */
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.animate-fadeIn { animation: fadeIn 0.35s ease-out; }
+.animate-fadeIn {
+  animation: fadeIn 0.35s ease-out;
+}
 
 @keyframes dotPulse {
-  0% { transform: scale(1.00); }
-  31% { transform: scale(1.25); }
-  47% { transform: scale(1.25); }
-  78% { transform: scale(1.00); }
-  100% { transform: scale(1.00); }
+  0% {
+    transform: scale(1.00);
+  }
+
+  31% {
+    transform: scale(1.25);
+  }
+
+  47% {
+    transform: scale(1.25);
+  }
+
+  78% {
+    transform: scale(1.00);
+  }
+
+  100% {
+    transform: scale(1.00);
+  }
 }
 
 @keyframes breatheHold {
-  0% { transform: scale(0.62); opacity: 0.95; }
-  28% { transform: scale(1.00); opacity: 1; }
-  40% { transform: scale(1.00); opacity: 1; }
-  72% { transform: scale(0.62); opacity: 0.95; }
-  100% { transform: scale(0.62); opacity: 0.95; }
+  0% {
+    transform: scale(0.62);
+    opacity: 0.95;
+  }
+
+  28% {
+    transform: scale(1.00);
+    opacity: 1;
+  }
+
+  40% {
+    transform: scale(1.00);
+    opacity: 1;
+  }
+
+  72% {
+    transform: scale(0.62);
+    opacity: 0.95;
+  }
+
+  100% {
+    transform: scale(0.62);
+    opacity: 0.95;
+  }
 }
 
 /* =========================================================
    Public Backgrounds
    ========================================================= */
 
-html.light { --bg-layer: url("/backgrounds/classic-day.webp"); }
-html.dark  { --bg-layer: url("/backgrounds/classic-night.webp"); }
+html.light {
+  --bg-layer: url("/backgrounds/classic-day.webp");
+}
 
-html.light[data-skin="floating"] { --bg-layer: url("/backgrounds/floating-day.webp"); }
-html.dark[data-skin="floating"]  { --bg-layer: url("/backgrounds/floating-night.webp"); }
+html.dark {
+  --bg-layer: url("/backgrounds/classic-night.webp");
+}
 
-html.light[data-skin="nature"] { --bg-layer: url("/backgrounds/nature-day.webp"); }
-html.dark[data-skin="nature"]  { --bg-layer: url("/backgrounds/nature-night.webp"); }
+html.light[data-skin="floating"] {
+  --bg-layer: url("/backgrounds/floating-day.webp");
+}
 
-html[data-skin="night-pro"] { --bg-layer: url("/backgrounds/nightpro.webp"); }
+html.dark[data-skin="floating"] {
+  --bg-layer: url("/backgrounds/floating-night.webp");
+}
+
+html.light[data-skin="nature"] {
+  --bg-layer: url("/backgrounds/nature-day.webp");
+}
+
+html.dark[data-skin="nature"] {
+  --bg-layer: url("/backgrounds/nature-night.webp");
+}
+
+html[data-skin="night-pro"] {
+  --bg-layer: url("/backgrounds/nightpro.webp");
+}
 
 body {
   background: var(--app-bg);
@@ -369,22 +435,40 @@ body::before {
 }
 
 /* Appinnhold over overlay */
-#__next, main {
+#__next,
+main {
   position: relative;
   z-index: 1;
 }
 
 /* Classic */
-html[data-skin="classic"].light { --bg-image: url("/backgrounds/classic-day.webp"); }
-html[data-skin="classic"].dark  { --bg-image: url("/backgrounds/classic-night.webp"); }
+html[data-skin="classic"].light {
+  --bg-image: url("/backgrounds/classic-day.webp");
+}
+
+html[data-skin="classic"].dark {
+  --bg-image: url("/backgrounds/classic-night.webp");
+}
 
 /* Floating */
-html[data-skin="floating"].light { --bg-image: url("/backgrounds/floating-day.webp"); }
-html[data-skin="floating"].dark  { --bg-image: url("/backgrounds/floating-night.webp"); }
+html[data-skin="floating"].light {
+  --bg-image: url("/backgrounds/floating-day.webp");
+}
+
+html[data-skin="floating"].dark {
+  --bg-image: url("/backgrounds/floating-night.webp");
+}
 
 /* Nature */
-html[data-skin="nature"].light { --bg-image: url("/backgrounds/nature-day.webp"); }
-html[data-skin="nature"].dark  { --bg-image: url("/backgrounds/nature-night.webp"); }
+html[data-skin="nature"].light {
+  --bg-image: url("/backgrounds/nature-day.webp");
+}
+
+html[data-skin="nature"].dark {
+  --bg-image: url("/backgrounds/nature-night.webp");
+}
 
 /* Night Pro (alltid “natt”-følelse, 1 fil) */
-html[data-skin="night-pro"] { --bg-image: url("/backgrounds/nightpro.webp"); }
+html[data-skin="night-pro"] {
+  --bg-image: url("/backgrounds/nightpro.webp");
+}
