@@ -9,9 +9,7 @@ type Theme = "light" | "dark";
 
 function getSystemTheme(): Theme {
   if (typeof window === "undefined") return "light";
-  return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches
-    ? "dark"
-    : "light";
+  return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light";
 }
 
 function applyHtmlTheme(mode: Theme | null) {
@@ -28,8 +26,7 @@ function applyHtmlTheme(mode: Theme | null) {
 }
 
 export default function ThemeToggle() {
-
-  // 👇 NYTT: les valgt skin
+  // les valgt skin
   const { skin } = useAppPrefs();
 
   const [mounted, setMounted] = useState(false);
@@ -86,17 +83,13 @@ export default function ThemeToggle() {
     return () => mq.removeEventListener?.("change", onChange);
   }, [mounted]);
 
-  // ⭐ NYTT:
   // Night Pro styrer egen stemning → toggle skjules
-  if (skin === "nightpro") {
-    return null;
-  }
+  if (skin === "nightpro") return null;
 
   const isDark = theme === "dark";
 
   const toggle = () => {
     const next: Theme = isDark ? "light" : "dark";
-
     setTheme(next);
     applyHtmlTheme(next);
 
@@ -105,40 +98,57 @@ export default function ThemeToggle() {
     } catch {}
   };
 
-  // Placeholder (hydration safe)
+  // Placeholder (hydration safe) – matcher app-stil
   if (!mounted) {
     return (
       <div
-        className="h-8 w-[72px] rounded-full bg-neutral-100"
+        className={[
+          "h-9 w-12 md:h-10 md:w-14 rounded-full",
+          "border border-[color:var(--border)]",
+          "bg-[var(--surface)]",
+          "opacity-60",
+        ].join(" ")}
         aria-hidden="true"
       />
     );
   }
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label="Toggle theme"
+  <button
+    type="button"
+    onClick={toggle}
+    aria-label="Toggle theme"
+    className={[
+      "relative rounded-full",
+      // ✅ Track større enn knob + padding inni
+      "h-8 w-[72px] md:h-10 md:w-[84px] p-1",
+      "border border-[color:var(--border)]",
+      "bg-[var(--surface)] text-[var(--text)]",
+      "hover:bg-[var(--surface-hover)]",
+      "transition-colors",
+      "focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]",
+    ].join(" ")}
+  >
+    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] opacity-55">
+      ☀️
+    </span>
+    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] opacity-55">
+      🌙
+    </span>
+
+    <span
       className={[
-        "relative h-8 w-[72px] rounded-full p-1",
-        "bg-neutral-100 shadow-sm ring-1 ring-neutral-200",
+        // ✅ Knob mindre enn track innside
+        "block rounded-full bg-[var(--app-bg)] shadow-sm",
+        "h-6 w-6 md:h-8 md:w-8",
+        "transition-transform duration-200",
+        // ✅ Alltid helt til høyre: trackWidth - knobSize - (2 * padding)
+        isDark
+          ? "translate-x-[calc(72px-24px-8px)] md:translate-x-[calc(84px-32px-8px)]"
+          : "translate-x-0",
       ].join(" ")}
-    >
-      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs opacity-60">
-        ☀️
-      </span>
-
-      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs opacity-60">
-        🌙
-      </span>
-
-      <span
-        className={[
-          "block h-6 w-6 rounded-full bg-[var(--app-bg)] shadow transition-transform duration-200",
-          isDark ? "translate-x-[40px]" : "translate-x-0",
-        ].join(" ")}
-      />
-    </button>
-  );
+    />
+  </button>
+);
+  
 }

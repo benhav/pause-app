@@ -17,19 +17,24 @@ export default function PrimaryButton({
       aria-label={ariaLabel}
       type="button"
       className={[
-        "w-full rounded-2xl px-4 py-4 sm:py-3 text-center text-sm font-medium",
+        // ✅ Stabil høyde + perfekt sentrering
+        "w-full inline-flex items-center justify-center",
+        "min-h-[56px] md:min-h-[66px]",
+        "rounded-2xl px-6",
+        "text-center font-medium",
+        "text-base md:text-lg leading-snug",
 
-        // Base style (theme-vars) – matcher ChoiceButton
+        // Base style (theme-vars)
         "border bg-[var(--surface)] text-[var(--text)]",
         "border-[color:var(--border)]",
         "hover:bg-[var(--surface-hover)]",
 
-        // Press animation (samme følelse som ChoiceButton)
+        // Press
         "transition-transform duration-150 ease-out",
         "active:scale-[0.985] active:translate-y-[1px]",
         "active:shadow-inner active:bg-[var(--press)]",
 
-        // Fokus
+        // Focus
         "focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]",
       ].join(" ")}
     >

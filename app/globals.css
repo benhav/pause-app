@@ -144,7 +144,7 @@ html.dark {
 body {
   background: var(--app-bg);
   color: var(--text);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), system-ui, sans-serif;
 }
 
 body::before {
@@ -191,7 +191,7 @@ body {
    ========================================================= */
 
 /* Classic skin: just keeps the base. (Optional: keep explicit) */
-html[data-skin="classic"] {}
+html[data-skin="classic"] { }
 
 /* ---------- FLOATING (day) ---------- */
 html[data-skin="floating"] {
@@ -471,4 +471,41 @@ html[data-skin="nature"].dark {
 /* Night Pro (alltid “natt”-følelse, 1 fil) */
 html[data-skin="night-pro"] {
   --bg-image: url("/backgrounds/nightpro.webp");
+}
+
+/* ---------- FONT SYSTEM ---------- */
+
+:root {
+
+  /* Body */
+  --font-body-stack:
+    var(--font-body),
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+
+  /* Display */
+  --font-display-stack:
+    var(--font-display),
+    Georgia,
+    serif;
+}
+
+/* Default text */
+body {
+
+  font-family: var(--font-body-stack);
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+}
+
+.font-display {
+
+  font-family: var(--font-display-stack);
+
 }

@@ -7,15 +7,13 @@ export default function ProgressDots({
 }) {
   return (
     <div
-      className="mt-3 flex justify-center gap-2"
+      className="mt-3 md:mt-4 flex justify-center gap-2 md:gap-2.5"
       aria-label={`Step ${current} of ${total}`}
       role="status"
     >
-      {/* Skjult tekst for skjermleser */}
       <span className="sr-only">{`Step ${current} of ${total}`}</span>
 
-      {/* Selve prikkene er dekorative */}
-      <div aria-hidden="true" className="flex justify-center gap-2">
+      <div aria-hidden="true" className="flex justify-center gap-2 md:gap-2.5">
         {Array.from({ length: total }).map((_, i) => {
           const isActive = i + 1 === current;
 
@@ -23,10 +21,12 @@ export default function ProgressDots({
             <span
               key={i}
               className={[
-                "h-2 w-2 rounded-full transition-all duration-300",
+                "rounded-full transition-all duration-300",
+                // size
+                "h-2 w-2 md:h-2.5 md:w-2.5",
                 isActive
-                  ? "bg-[var(--text)] scale-110 animate-[dotPulse_12.8s_ease-in-out_infinite] opacity-90"
-                  : "bg-[var(--muted)] scale-100 opacity-35",
+                  ? "bg-[var(--text)] scale-110 animate-[dotPulse_12.8s_ease-in-out_infinite] opacity-85"
+                  : "bg-[var(--muted)] scale-100 opacity-25",
               ].join(" ")}
             />
           );

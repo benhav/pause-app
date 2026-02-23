@@ -14,6 +14,7 @@ import type { Locale } from "../data/uiText";
 import { UI_TEXT } from "../data/uiText";
 import { SoftBreath } from "../lib/softBreath";
 import { useAppPrefs } from "../AppProviders";
+import Title from "../components/Title";
 
 const STORAGE_KEY = "pause-locale";
 
@@ -35,7 +36,7 @@ function getVoiceText(locale: Locale, phase: VoicePhase) {
   return "Breathe out";
 }
 
-// --- NEW: pickVoice + improved speak (drop-in) ---
+// --- pickVoice + improved speak (drop-in) ---
 function pickVoice(locale: Locale) {
   const synth = window.speechSynthesis;
   const voices = synth?.getVoices?.() ?? [];
@@ -82,20 +83,17 @@ function speak(text: string, locale: Locale) {
 
     const u = new SpeechSynthesisUtterance(text);
 
-    // lang for uttale
     u.lang = locale === "no" ? "nb-NO" : "en-GB";
 
-    // velg best voice (reduserer “rar norsk”)
     const v = pickVoice(locale);
     if (v) u.voice = v;
 
-    // Mykere/roligere
     u.rate = 0.88;
     u.pitch = 0.95;
     u.volume = 0.85;
 
     synth.speak(u);
-  } catch {}
+  } catch { }
 }
 
 export default function BreathingRoomClient() {
@@ -108,11 +106,9 @@ export default function BreathingRoomClient() {
   const [showElements, setShowElements] = useState(true);
   const [seconds, setSeconds] = useState<number>(DEFAULT_SECONDS);
 
-  // Voice / Pro
   const { proDemo: isPro, setProDemo: setIsPro } = useAppPrefs();
   const [voiceEnabled, setVoiceEnabled] = useState(false);
 
-  // For å kunne “resette” animasjonen (og synce voice 1:1)
   const [animNonce, setAnimNonce] = useState(0);
 
   const timersRef = useRef<number[]>([]);
@@ -132,14 +128,12 @@ export default function BreathingRoomClient() {
     const eng = breathRef.current;
     if (!eng) return;
 
-    // Synk med keyframes:
-    // 0->28% inn, 28->40% hold, 40->72% ut, resten tilbake/ro
     const inhale = seconds * 0.28;
     const hold = seconds * 0.12;
     const exhale = seconds * 0.32;
 
     const now = eng.now();
-    const start = now + 0.06; // liten buffer
+    const start = now + 0.06;
 
     eng.chime(start, 528, 0.09);
     eng.breath(start, inhale, "in");
@@ -157,7 +151,6 @@ export default function BreathingRoomClient() {
 
   useEffect(() => setMounted(true), []);
 
-  // --- Warm up speech synthesis voices ---
   function warmUpVoices() {
     const s = window.speechSynthesis;
     s?.getVoices?.();
@@ -179,7 +172,6 @@ export default function BreathingRoomClient() {
     };
   }, []);
 
-  // Språk: query param først (?lang=no|en), ellers localStorage
   useEffect(() => {
     if (!mounted) return;
 
@@ -190,19 +182,18 @@ export default function BreathingRoomClient() {
       setLocale(qLocale);
       try {
         localStorage.setItem(STORAGE_KEY, qLocale);
-      } catch {}
+      } catch { }
       return;
     }
 
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved === "en" || saved === "no") setLocale(saved as Locale);
-    } catch {}
+    } catch { }
   }, [mounted, searchParams]);
 
   const t = useMemo(() => UI_TEXT[locale], [locale]);
 
-  // Bunn=tregest, topp=raskest.
   const sliderValue = useMemo(() => MAX_SECONDS + MIN_SECONDS - seconds, [seconds]);
 
   const onSliderChange = (v: number) => {
@@ -210,7 +201,6 @@ export default function BreathingRoomClient() {
     setSeconds(inverted);
   };
 
-  // Når hastigheten endres: restart animasjon (og dermed voice sync)
   useEffect(() => {
     setAnimNonce((n) => n + 1);
   }, [seconds]);
@@ -221,7 +211,6 @@ export default function BreathingRoomClient() {
     };
   }, [seconds]);
 
-  // Voice loop (kun når pro + voiceEnabled)
   useEffect(() => {
     timersRef.current.forEach((id) => window.clearTimeout(id));
     timersRef.current = [];
@@ -231,7 +220,7 @@ export default function BreathingRoomClient() {
     if (!isPro || !voiceEnabled) {
       try {
         window.speechSynthesis?.cancel();
-      } catch {}
+      } catch { }
       return;
     }
 
@@ -264,11 +253,10 @@ export default function BreathingRoomClient() {
       timersRef.current = [];
       try {
         window.speechSynthesis?.cancel();
-      } catch {}
+      } catch { }
     };
   }, [mounted, isPro, voiceEnabled, seconds, locale, animNonce]);
 
-  // --- SoftBreath: init + scheduling (kun når pro + voiceEnabled) ---
   useEffect(() => {
     if (!mounted) return;
 
@@ -313,38 +301,40 @@ export default function BreathingRoomClient() {
     "hover:bg-[var(--surface-hover)]",
   ].join(" ");
 
+  // Ny “cue” i sirkelen
+  const circleCue = locale === "no" ? "Pust i rytmen" : "Breathe with the rhythm";
+
   return (
     <main
       className={[
-        "min-h-[100svh] w-full",
-        // Mobil: uendret
+        "h-[100svh] w-full overflow-hidden",
         "px-0 py-0",
-        // ✅ Tablet: litt luft rundt, men ikke “desktop”
         "md:px-6 md:py-6",
-        // ✅ Store skjermer: behold eksisterende “kort i midten” (som før)
         "sm:flex sm:items-center sm:justify-center sm:px-4 sm:py-6 sm:pt-6",
       ].join(" ")}
     >
       <div
         className={[
           "w-full pb-[env(safe-area-inset-bottom)]",
-          // ✅ Tablet: litt bredere enn mobil og sentrert
           "md:max-w-3xl md:mx-auto",
-          // ✅ Eksisterende desktop-width
           "sm:max-w-md",
         ].join(" ")}
       >
         <div
+
           className={[
-            "relative w-full min-h-[100svh] rounded-none p-6",
-            // ✅ Tablet: litt mer luft
+            
+            "relative w-full h-[100svh] rounded-none p-6",
             "md:p-8",
-            // VIKTIG: bruk surface (semi-transparent) så bakgrunnsbildet under synes
             "bg-[var(--surface)] text-[var(--text)] backdrop-blur-xl",
-            "sm:min-h-0 sm:rounded-3xl sm:shadow-sm sm:ring-1 sm:ring-[color:var(--border)]",
+            "sm:rounded-3xl sm:shadow-sm sm:ring-1 sm:ring-[color:var(--border)]",
+            "sm:max-h-[calc(100svh-3rem)] ", // ✅ viktig
             "flex flex-col",
+            "overflow-y-scroll",            // ✅ viktig
           ].join(" ")}
+          style={{ scrollbarGutter: "stable both-edges" }} // ✅ best effort
         >
+
           {/* Top controls */}
           <div className="absolute right-3 top-2 flex items-center gap-3 md:right-5 md:top-3">
             <div className="flex gap-2">
@@ -354,7 +344,7 @@ export default function BreathingRoomClient() {
                   setLocale("no");
                   try {
                     localStorage.setItem(STORAGE_KEY, "no");
-                  } catch {}
+                  } catch { }
                 }}
                 aria-label="Switch to Norwegian"
                 className={langBtnClass(locale === "no")}
@@ -372,7 +362,7 @@ export default function BreathingRoomClient() {
                   setLocale("en");
                   try {
                     localStorage.setItem(STORAGE_KEY, "en");
-                  } catch {}
+                  } catch { }
                 }}
                 aria-label="Switch to English"
                 className={langBtnClass(locale === "en")}
@@ -389,14 +379,21 @@ export default function BreathingRoomClient() {
           {/* Layout: top / middle / bottom */}
           <div className="flex-1 grid grid-rows-[clamp(150px,20vh,200px)_1fr_clamp(190px,26vh,260px)] md:grid-rows-[clamp(150px,18vh,210px)_1fr_clamp(210px,28vh,300px)]">
             {/* TOP */}
-            <div className="pt-12 text-center md:pt-10">
+            <div className="pt-12 text-center md:pt-12">
               {showElements ? (
                 <>
-                  <div className="text-2xl md:text-3xl font-semibold text-[var(--text)]">
-                    {t.breathingRoomTitle}
-                  </div>
-                  <div className="mt-1 text-sm md:text-base italic text-[var(--muted)]">
-                    {t.followRhythm}
+                  {/* ✅ Identisk font som resten */}
+                  <div className="flex justify-center">
+                    <div className="max-w-full">
+                      {/* Mobil: mindre + en linje */}
+                      <div className="md:hidden whitespace-nowrap">
+                        <Title className="text-4xl leading-none">{t.breathingRoomTitle}</Title>
+                      </div>
+                      {/* Tablet/desktop: som før */}
+                      <div className="hidden md:block">
+                        <Title>{t.breathingRoomTitle}</Title>
+                      </div>
+                    </div>
                   </div>
 
                   <button
@@ -423,10 +420,8 @@ export default function BreathingRoomClient() {
               <div
                 key={animNonce}
                 className={[
-                  "rounded-full will-change-transform",
-                  // Mobil: uendret
+                  "relative rounded-full will-change-transform",
                   "w-[55vmin] h-[55vmin] max-w-[320px] max-h-[320px]",
-                  // ✅ Tablet: større sirkel
                   "md:w-[44vmin] md:h-[44vmin] md:max-w-[420px] md:max-h-[420px]",
                 ].join(" ")}
                 style={{
@@ -435,11 +430,26 @@ export default function BreathingRoomClient() {
                   boxShadow: "var(--breath-shadow)",
                 }}
                 aria-label={locale === "no" ? "Pusteindikator" : "Breathing indicator"}
-              />
+              >
+                {/* ✅ Cue inni sirkelen – men skjules når showElements=false */}
+                {showElements && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div
+                      className={[
+                        "italic text-[var(--muted)] select-none",
+                        "whitespace-nowrap",
+                        "text-[clamp(12px,3.2vmin,18px)] md:text-[clamp(12px,2.2vmin,20px)]",
+                      ].join(" ")}
+                    >
+                      {circleCue}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* BOTTOM */}
-            <div className="flex flex-col items-center justify-start pt-6 md:pt-8">
+            <div className="flex flex-col items-center justify-start pt-6 md:pt-7">
               {showElements ? (
                 <div className="w-full max-w-[360px] px-2 md:max-w-[520px] md:px-6">
                   <input
@@ -474,13 +484,13 @@ export default function BreathingRoomClient() {
                         try {
                           const s = window.speechSynthesis;
                           s?.getVoices?.();
-                        } catch {}
+                        } catch { }
 
                         try {
                           if (!breathRef.current) breathRef.current = new SoftBreath();
                           await breathRef.current.init();
                           breathRef.current.setVolume(0.18);
-                        } catch {}
+                        } catch { }
 
                         setAnimNonce((n) => n + 1);
 
@@ -511,7 +521,7 @@ export default function BreathingRoomClient() {
                         stopSoftBreath();
                         try {
                           window.speechSynthesis?.cancel();
-                        } catch {}
+                        } catch { }
                       }}
                       className={smallPill}
                     >

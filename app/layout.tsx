@@ -1,8 +1,14 @@
+
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { Inter, Fraunces } from "next/font/google";
+
 import "./globals.css";
 
 import AppProviders from "./AppProviders";
+
 
 
 const geistSans = Geist({
@@ -13,6 +19,18 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+});
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -53,11 +71,11 @@ export default function RootLayout({
 
     // Skin
     var skin = localStorage.getItem('${SKIN_KEY}');
-    if (skin !== 'classic' && skin !== 'floating' && skin !== 'nature' && skin !== 'nightfirst') skin = 'classic';
+    if (skin !== 'classic' && skin !== 'floating' && skin !== 'nature' && skin !== 'nightpro') skin = 'classic';
 
-    // Nightfirst i light -> fallback
+    // Nightpro i light -> fallback
     var isDark = root.classList.contains('dark');
-    if (skin === 'nightfirst' && !isDark) skin = 'classic';
+    if (skin === 'nightpro' && !isDark) skin = 'classic';
 
     root.dataset.skin = skin;
   } catch (e) {}
@@ -65,12 +83,15 @@ export default function RootLayout({
 
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${fraunces.variable}`}
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
       </head>
 
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} >
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

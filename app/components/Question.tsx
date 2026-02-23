@@ -2,7 +2,18 @@ import type { ReactNode } from "react";
 
 export default function Question({ children }: { children: ReactNode }) {
   return (
-    <div className="mt-4 text-center text-sm sm:text-base text-[var(--muted)]">
+    <div
+      className={[
+        "text-center text-[var(--muted)]",
+        // spacing
+        "mt-3",
+        // type scale (litt under Subtitle)
+        "text-sm",
+        "md:text-base",
+        // lesbarhet
+        "leading-relaxed",
+      ].join(" ")}
+    >
       {children}
     </div>
   );

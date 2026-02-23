@@ -20,30 +20,34 @@ export default function TopRow({
   const flagAlt = locale === "no" ? "Norsk" : "English";
 
   return (
-    <div className="relative mb-5 flex w-full items-center justify-center">
-      {/* Home (skal vises på mobil + desktop, men kun på bestemte steg) */}
+    <div className="relative mb-5 md:mb-6 flex w-full items-center justify-center">
+      {/* Home */}
       {showHome && onHome && (
         <button
           type="button"
           onClick={onHome}
           aria-label="Home"
-          className="absolute left-0 inline-flex items-center justify-center rounded-full hover:bg-neutral-50"
+          className={[
+            "absolute left-0",
+            "h-10 w-10 md:h-11 md:w-11",
+            "inline-flex items-center justify-center rounded-full",
+            "border border-[color:var(--border)]",
+            "bg-transparent",
+            "hover:bg-[var(--surface-hover)]",
+            "transition",
+          ].join(" ")}
         >
-          <img
-            src="/icons/home.svg"
-            alt=""
-            className="h-7 w-7"
-            draggable={false}
-          />
+          <img src="/icons/home.svg" alt="" className="h-6 w-6 md:h-7 md:w-7" draggable={false} />
         </button>
       )}
 
-      {/* Back vises kun på desktop */}
+      {/* Back (kun for store skjermer – men korrekt breakpoint) */}
       <button
         onClick={onBack}
         className={[
-          "hidden x1:inline-flex absolute rounded-xl px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50",
-          showHome ? "left-10" : "left-0",
+          "hidden xl:inline-flex absolute rounded-xl px-3 py-2 text-sm",
+          "text-[var(--muted)] hover:bg-[var(--surface-hover)]",
+          showHome ? "left-12" : "left-0",
         ].join(" ")}
         aria-label={t.goBack}
         type="button"
@@ -51,18 +55,19 @@ export default function TopRow({
         ← {t.goBack}
       </button>
 
-      <div className="text-xs text-neutral-400 text-center">{t.appNameLine}</div>
+      <div className="text-xs md:text-sm text-[var(--muted)] text-center">
+        {t.appNameLine}
+      </div>
 
-      {/* Vis valgt språk som ett lite flagg */}
+      {/* Language flag */}
       <div className="absolute right-0">
         <img
           src={flagSrc}
           alt={flagAlt}
-          className="h-6 w-6 rounded-full border border-neutral-200"
+          className="h-6 w-6 md:h-7 md:w-7 rounded-full border border-[color:var(--border)]"
           draggable={false}
         />
       </div>
     </div>
   );
 }
-
