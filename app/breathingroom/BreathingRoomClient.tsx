@@ -9,14 +9,15 @@ import {
   useCallback,
   type CSSProperties,
 } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import type { Locale } from "../data/uiText";
 import { UI_TEXT } from "../data/uiText";
 import { SoftBreath } from "../lib/softBreath";
 import { useAppPrefs } from "../AppProviders";
 import Title from "../components/Title";
 
-const STORAGE_KEY = "pause-locale";
+// ✅ Same key as HomeClient
+const LOCALE_KEY = "pause-locale";
 
 // Slider: TOPP = raskest, BUNN = tregest
 const MIN_SECONDS = 6; // raskest
@@ -66,7 +67,9 @@ function pickVoice(locale: Locale) {
     );
     if (v) return v;
   } else {
-    const v = voices.find((v) => /english|en/i.test(v.name) || /en/i.test(v.lang));
+    const v = voices.find(
+      (v) => /english|en/i.test(v.name) || /en/i.test(v.lang)
+    );
     if (v) return v;
   }
 
@@ -93,12 +96,11 @@ function speak(text: string, locale: Locale) {
     u.volume = 0.85;
 
     synth.speak(u);
-  } catch { }
+  } catch {}
 }
 
 export default function BreathingRoomClient() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [mounted, setMounted] = useState(false);
   const [locale, setLocale] = useState<Locale>("no");
@@ -172,29 +174,21 @@ export default function BreathingRoomClient() {
     };
   }, []);
 
+  // ✅ Locale follows app (welcome selection). No language UI here.
   useEffect(() => {
     if (!mounted) return;
-
-    const q = searchParams.get("lang");
-    const qLocale: Locale | null = q === "en" || q === "no" ? (q as Locale) : null;
-
-    if (qLocale) {
-      setLocale(qLocale);
-      try {
-        localStorage.setItem(STORAGE_KEY, qLocale);
-      } catch { }
-      return;
-    }
-
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(LOCALE_KEY);
       if (saved === "en" || saved === "no") setLocale(saved as Locale);
-    } catch { }
-  }, [mounted, searchParams]);
+    } catch {}
+  }, [mounted]);
 
   const t = useMemo(() => UI_TEXT[locale], [locale]);
 
-  const sliderValue = useMemo(() => MAX_SECONDS + MIN_SECONDS - seconds, [seconds]);
+  const sliderValue = useMemo(
+    () => MAX_SECONDS + MIN_SECONDS - seconds,
+    [seconds]
+  );
 
   const onSliderChange = (v: number) => {
     const inverted = MAX_SECONDS + MIN_SECONDS - v;
@@ -220,7 +214,7 @@ export default function BreathingRoomClient() {
     if (!isPro || !voiceEnabled) {
       try {
         window.speechSynthesis?.cancel();
-      } catch { }
+      } catch {}
       return;
     }
 
@@ -232,7 +226,10 @@ export default function BreathingRoomClient() {
       speak(getVoiceText(locale, "in"), locale);
 
       timersRef.current.push(
-        window.setTimeout(() => speak(getVoiceText(locale, "hold"), locale), inhale)
+        window.setTimeout(
+          () => speak(getVoiceText(locale, "hold"), locale),
+          inhale
+        )
       );
 
       timersRef.current.push(
@@ -253,7 +250,7 @@ export default function BreathingRoomClient() {
       timersRef.current = [];
       try {
         window.speechSynthesis?.cancel();
-      } catch { }
+      } catch {}
     };
   }, [mounted, isPro, voiceEnabled, seconds, locale, animNonce]);
 
@@ -268,7 +265,16 @@ export default function BreathingRoomClient() {
     }
 
     return () => stopSoftBreath();
-  }, [mounted, isPro, voiceEnabled, seconds, locale, animNonce, scheduleSoftBreath, stopSoftBreath]);
+  }, [
+    mounted,
+    isPro,
+    voiceEnabled,
+    seconds,
+    locale,
+    animNonce,
+    scheduleSoftBreath,
+    stopSoftBreath,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -278,31 +284,40 @@ export default function BreathingRoomClient() {
 
   if (!mounted) return <main className="min-h-[100svh]" />;
 
-  const langBtnClass = (active: boolean) =>
-    [
-      "rounded-full p-0.5",
-      active ? "ring-2 ring-[color:var(--text)]" : "ring-1 ring-[color:var(--border)]",
-    ].join(" ");
-
   const surfaceButton = [
     "w-full rounded-2xl px-4 py-4 text-sm md:text-base md:py-5",
-    "border bg-[var(--surface)] text-[var(--text)]",
-    "border-[color:var(--border)]",
-    "hover:bg-[var(--surface-hover)]",
+    "border bg-[var(--btn-bg)] text-[var(--text)]",
+    "border-[color:var(--btn-border)]",
+    "shadow-[var(--btn-shadow)]",
+    "hover:bg-[var(--btn-bg-hover)]",
+    "hover:shadow-[var(--btn-shadow-hover)]",
     "transition-transform duration-150 ease-out",
     "active:scale-[0.985] active:translate-y-[1px]",
-    "active:shadow-inner active:bg-[var(--press)]",
+    "active:shadow-[var(--btn-pressed-shadow)] active:bg-[var(--press)]",
   ].join(" ");
 
   const smallPill = [
     "inline-flex items-center justify-center gap-2",
     "rounded-full border px-3 py-2 text-xs md:text-sm md:px-4 md:py-2.5",
-    "border-[color:var(--border)] bg-[var(--surface)] text-[var(--text)]",
-    "hover:bg-[var(--surface-hover)]",
+    "border-[color:var(--btn-border)] bg-[var(--btn-bg)] text-[var(--text)]",
+    "shadow-[var(--btn-shadow)]",
+    "hover:bg-[var(--btn-bg-hover)] hover:shadow-[var(--btn-shadow-hover)]",
+    "transition",
   ].join(" ");
 
-  // Ny “cue” i sirkelen
-  const circleCue = locale === "no" ? "Pust i rytmen" : "Breathe with the rhythm";
+  // Premium chip for Hide/Show
+  const calmChip = [
+    "inline-flex items-center justify-center",
+    "rounded-full px-4 py-2 text-xs md:text-sm",
+    "border border-[color:var(--btn-border)]",
+    "bg-[var(--btn-bg)] text-[var(--muted)]",
+    "shadow-[var(--btn-shadow)]",
+    "hover:bg-[var(--btn-bg-hover)] hover:shadow-[var(--btn-shadow-hover)]",
+    "transition",
+  ].join(" ");
+
+  const circleCue =
+    locale === "no" ? "Pust i rytmen" : "Breathe with the rhythm";
 
   return (
     <main
@@ -320,98 +335,82 @@ export default function BreathingRoomClient() {
           "sm:max-w-md",
         ].join(" ")}
       >
+        {/* ✅ Premium panel wrapper (tokens from globals.css) */}
         <div
-
           className={[
-            
             "relative w-full h-[100svh] rounded-none p-6",
             "md:p-8",
-            "bg-[var(--surface)] text-[var(--text)] backdrop-blur-xl",
-            "sm:rounded-3xl sm:shadow-sm sm:ring-1 sm:ring-[color:var(--border)]",
-            "sm:max-h-[calc(100svh-3rem)] ", // ✅ viktig
+
+            // Panel material tokens
+            "bg-[var(--br-panel-bg)] text-[var(--text)] backdrop-blur-xl",
+            "sm:rounded-3xl sm:ring-1 sm:ring-[color:var(--br-panel-border)]",
+            "sm:max-h-[calc(100svh-3rem)]",
+
             "flex flex-col",
-            "overflow-y-scroll",            // ✅ viktig
+            "overflow-y-scroll",
           ].join(" ")}
-          style={{ scrollbarGutter: "stable both-edges" }} // ✅ best effort
+          style={{
+            scrollbarGutter: "stable both-edges",
+            backgroundImage:
+              "linear-gradient(to bottom, rgba(255,255,255,0.16), rgba(255,255,255,0)), radial-gradient(900px 520px at 50% -120px, rgba(255,255,255,0.10), transparent 55%), var(--br-grain)",
+            backgroundBlendMode: "overlay",
+            boxShadow: "var(--br-panel-shadow)",
+          }}
         >
-
-          {/* Top controls */}
-          <div className="absolute right-3 top-2 flex items-center gap-3 md:right-5 md:top-3">
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setLocale("no");
-                  try {
-                    localStorage.setItem(STORAGE_KEY, "no");
-                  } catch { }
-                }}
-                aria-label="Switch to Norwegian"
-                className={langBtnClass(locale === "no")}
-              >
-                <img
-                  src="/flags/nor.svg"
-                  alt="Norsk"
-                  className="h-6 w-6 md:h-7 md:w-7 rounded-full"
-                />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setLocale("en");
-                  try {
-                    localStorage.setItem(STORAGE_KEY, "en");
-                  } catch { }
-                }}
-                aria-label="Switch to English"
-                className={langBtnClass(locale === "en")}
-              >
-                <img
-                  src="/flags/gb-eng.svg"
-                  alt="English"
-                  className="h-6 w-6 md:h-7 md:w-7 rounded-full"
-                />
-              </button>
-            </div>
-          </div>
+          {/* ✅ Grain layer BEHIND content */}
+          <div
+            className="pointer-events-none absolute inset-0 sm:rounded-3xl"
+            style={{
+              zIndex: 0,
+              opacity: "var(--br-grain-opacity)",
+              backgroundImage:
+                "repeating-radial-gradient(circle at 35% 20%, rgba(0,0,0,0.05) 0px, rgba(0,0,0,0.05) 1px, transparent 10px, transparent 22px)",
+              mixBlendMode: "overlay",
+            }}
+          />
 
           {/* Layout: top / middle / bottom */}
-          <div className="flex-1 grid grid-rows-[clamp(150px,20vh,200px)_1fr_clamp(190px,26vh,260px)] md:grid-rows-[clamp(150px,18vh,210px)_1fr_clamp(210px,28vh,300px)]">
+          <div
+            className="relative flex-1 grid grid-rows-[clamp(150px,20vh,200px)_1fr_clamp(190px,26vh,260px)] md:grid-rows-[clamp(150px,18vh,210px)_1fr_clamp(210px,28vh,300px)]"
+            style={{ zIndex: 1 }}
+          >
             {/* TOP */}
             <div className="pt-12 text-center md:pt-12">
               {showElements ? (
                 <>
-                  {/* ✅ Identisk font som resten */}
                   <div className="flex justify-center">
                     <div className="max-w-full">
-                      {/* Mobil: mindre + en linje */}
                       <div className="md:hidden whitespace-nowrap">
-                        <Title className="text-4xl leading-none">{t.breathingRoomTitle}</Title>
+                        <Title className="text-4xl leading-none">
+                          {t.breathingRoomTitle}
+                        </Title>
                       </div>
-                      {/* Tablet/desktop: som før */}
                       <div className="hidden md:block">
                         <Title>{t.breathingRoomTitle}</Title>
                       </div>
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setShowElements(false)}
-                    className="mt-3 text-sm md:text-base text-[var(--muted)] underline underline-offset-4 hover:opacity-90"
-                  >
-                    {t.hideElements}
-                  </button>
+                  <div className="mt-4 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowElements(false)}
+                      className={calmChip}
+                    >
+                      {t.hideElements}
+                    </button>
+                  </div>
                 </>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowElements(true)}
-                  className="text-sm md:text-base text-[var(--muted)] underline underline-offset-4 hover:opacity-90"
-                >
-                  {t.showElements}
-                </button>
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowElements(true)}
+                    className={calmChip}
+                  >
+                    {t.showElements}
+                  </button>
+                </div>
               )}
             </div>
 
@@ -420,20 +419,85 @@ export default function BreathingRoomClient() {
               <div
                 key={animNonce}
                 className={[
-                  "relative rounded-full will-change-transform",
+                  "relative rounded-full overflow-hidden will-change-transform",
                   "w-[55vmin] h-[55vmin] max-w-[320px] max-h-[320px]",
                   "md:w-[44vmin] md:h-[44vmin] md:max-w-[420px] md:max-h-[420px]",
                 ].join(" ")}
                 style={{
                   ...circleStyle,
                   background: "var(--breath-fill)",
-                  boxShadow: "var(--breath-shadow)",
+                  boxShadow:
+                    "var(--breath-shadow), inset 0 2px 10px rgba(255,255,255,0.12)",
                 }}
-                aria-label={locale === "no" ? "Pusteindikator" : "Breathing indicator"}
+                aria-label={
+                  locale === "no" ? "Pusteindikator" : "Breathing indicator"
+                }
               >
-                {/* ✅ Cue inni sirkelen – men skjules når showElements=false */}
+                {/* ======================================================
+                   Step 3: Breath Circle “holy shit moment”
+                   - Rim-light (glass edge)
+                   - Lens curvature + depth
+                   - Subtle parallax illusion (drift + layered highlights)
+                   ====================================================== */}
+
+                {/* Rim-light + lens curvature (static but “breathes” via scale) */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    zIndex: 1,
+                    borderRadius: "9999px",
+                    backgroundImage:
+                      "radial-gradient(circle at 30% 25%, rgba(255,255,255,0.40), rgba(255,255,255,0) 52%), radial-gradient(circle at 70% 80%, rgba(0,0,0,0.10), rgba(0,0,0,0) 55%), linear-gradient(to bottom, rgba(255,255,255,0.10), rgba(255,255,255,0))",
+                    mixBlendMode: "overlay",
+                    opacity: 0.75,
+                  }}
+                />
+
+                {/* Premium inner highlight (drifting light + vignette) */}
+                <div
+                  className="absolute inset-0 rounded-full pointer-events-none overflow-hidden"
+                  style={{ zIndex: 2 }}
+                >
+                  {/* drifting light */}
+                  <div
+                    className="absolute inset-[-15%]"
+                    style={{
+                      backgroundImage:
+                        "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.45), rgba(255,255,255,0) 60%)",
+                      animation: "breathLightDrift 26s ease-in-out infinite",
+                      mixBlendMode: "overlay",
+                      opacity: 0.55,
+                    }}
+                  />
+
+                  {/* subtle inner vignette */}
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      boxShadow: "inset 0 0 80px rgba(0,0,0,0.08)",
+                      borderRadius: "9999px",
+                      opacity: 0.95,
+                    }}
+                  />
+
+                  {/* micro specular “edge” line */}
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      borderRadius: "9999px",
+                      boxShadow:
+                        "inset 0 1px 0 rgba(255,255,255,0.20), inset 0 -1px 0 rgba(0,0,0,0.06)",
+                      opacity: 0.9,
+                    }}
+                  />
+                </div>
+
+                {/* Cue inni sirkelen – skjules når showElements=false */}
                 {showElements && (
-                  <div className="absolute inset-0 flex items-center justify-center">
+                  <div
+                    className="absolute inset-0 flex items-center justify-center"
+                    style={{ zIndex: 5 }}
+                  >
                     <div
                       className={[
                         "italic text-[var(--muted)] select-none",
@@ -458,7 +522,7 @@ export default function BreathingRoomClient() {
                     max={MAX_SECONDS}
                     value={sliderValue}
                     onChange={(e) => onSliderChange(Number(e.target.value))}
-                    className="w-full accent-[color:var(--accent)]"
+                    className="pause-range w-full"
                     aria-label={t.speedAria}
                   />
 
@@ -484,24 +548,34 @@ export default function BreathingRoomClient() {
                         try {
                           const s = window.speechSynthesis;
                           s?.getVoices?.();
-                        } catch { }
+                        } catch {}
 
                         try {
-                          if (!breathRef.current) breathRef.current = new SoftBreath();
+                          if (!breathRef.current)
+                            breathRef.current = new SoftBreath();
                           await breathRef.current.init();
                           breathRef.current.setVolume(0.18);
-                        } catch { }
+                        } catch {}
 
                         setAnimNonce((n) => n + 1);
 
                         if (voiceEnabled) stopSoftBreath();
                         setVoiceEnabled((v) => !v);
                       }}
-                      aria-label={locale === "no" ? "Stemmeguiding" : "Voice guidance"}
-                      className={[smallPill, !isPro ? "opacity-50 cursor-not-allowed" : ""].join(" ")}
+                      aria-label={
+                        locale === "no" ? "Stemmeguiding" : "Voice guidance"
+                      }
+                      className={[
+                        smallPill,
+                        !isPro ? "opacity-50 cursor-not-allowed" : "",
+                      ].join(" ")}
                     >
-                      <span aria-hidden="true">{voiceEnabled && isPro ? "🔊" : "🔇"}</span>
-                      <span>{locale === "no" ? "Stemmeguiding" : "Voice guidance"}</span>
+                      <span aria-hidden="true">
+                        {voiceEnabled && isPro ? "🔊" : "🔇"}
+                      </span>
+                      <span>
+                        {locale === "no" ? "Stemmeguiding" : "Voice guidance"}
+                      </span>
                     </button>
 
                     {!isPro && (
@@ -521,7 +595,7 @@ export default function BreathingRoomClient() {
                         stopSoftBreath();
                         try {
                           window.speechSynthesis?.cancel();
-                        } catch { }
+                        } catch {}
                       }}
                       className={smallPill}
                     >
@@ -530,8 +604,8 @@ export default function BreathingRoomClient() {
                           ? "Deaktiver pro-demo"
                           : "Deactivate pro-demo"
                         : locale === "no"
-                          ? "Aktiver pro-demo"
-                          : "Activate pro-demo"}
+                        ? "Aktiver pro-demo"
+                        : "Activate pro-demo"}
                     </button>
                   </div>
                 </div>
@@ -542,10 +616,10 @@ export default function BreathingRoomClient() {
           </div>
 
           {/* Go back pinned bottom */}
-          <div className="mt-6 md:mt-10">
+          <div className="relative mt-6 md:mt-10" style={{ zIndex: 1 }}>
             <button
               type="button"
-              onClick={() => router.push(`/?lang=${locale}`)}
+              onClick={() => router.push(`/`)}
               className={surfaceButton}
               aria-label={t.goBack}
             >

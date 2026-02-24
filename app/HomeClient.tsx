@@ -465,7 +465,7 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
                 <Question>{t.qBoundary}</Question>
               </div>
 
-              <div className="mt-4 text-sm md:text-base text-neutral-600 text-center">{t.optional}</div>
+              <div className="mt-4 text-sm md:text-base text-[var(--muted)] text-center">{t.optional}</div>
 
               {/* ✅ Tablet: ikke gigantisk dytte ned. Mobil: behold keyboard-padding */}
               <div className="mt-6 pb-40 sm:pb-0 md:mt-10">
@@ -539,7 +539,7 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
                 )}
               </div>
 
-              <div className="mt-6 text-center text-sm md:text-base text-neutral-600">{safeResult.end}</div>
+              <div className="mt-4 text-sm md:text-base text-[var(--muted)] text-center">{safeResult.end}</div>
 
               <div className="mt-6 space-y-3 md:space-y-5">
                 <PrimaryButton onClick={() => router.push(`/breathingroom?lang=${locale}`)} ariaLabel={t.openBreathingRoom}>

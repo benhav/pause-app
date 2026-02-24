@@ -21,15 +21,44 @@
   --bg-layer: none;
   --bg-opacity: 1;
 
+  /* =========================================================
+     BreathingRoom — Premium tokens (Step 2: 1–3)
+     - 1) Circle becomes the “jewel”
+     - 2) Optional micro-grain (will be wired in next step)
+     - 3) Curated controls (tokens ready; wiring later)
+     ========================================================= */
+
+  /* Panel “material” (ready to be used in BreathingRoomClient next step) */
+  --br-panel-bg: var(--surface);
+  --br-panel-border: var(--border);
+  --br-panel-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+
+  /* Micro grain (subtle, premium). Keep 0 by default; per-skin tweaks below. */
+  --br-grain-opacity: 0;
+  --br-grain:
+    radial-gradient(1200px 700px at 40% 10%, rgba(255, 255, 255, 0.22), transparent 60%),
+    radial-gradient(900px 600px at 70% 30%, rgba(255, 255, 255, 0.14), transparent 60%);
+
+  /* Circle: “jewel” */
+  --breath-glow: rgba(56, 189, 248, 0.22);
+  --breath-rim: rgba(255, 255, 255, 0.30);
+  --breath-inner-rim: rgba(0, 0, 0, 0.03);
+
   /* BreathingRoom circle */
   --breath-fill: radial-gradient(circle at 35% 30%,
       rgba(255, 255, 255, 0.98),
       rgba(186, 230, 253, 0.95) 35%,
       rgba(125, 211, 252, 0.88) 70%,
       rgba(56, 189, 248, 0.78));
-  --breath-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-}
 
+  /* Jewel shadow stack (works with existing BreathingRoomClient usage) */
+  --breath-shadow:
+    0 18px 55px rgba(0, 0, 0, 0.10),
+    0 0 0 1px var(--breath-inner-rim) inset,
+    0 0 0 1px var(--breath-rim),
+    0 10px 28px rgba(0, 0, 0, 0.08),
+    0 0 42px var(--breath-glow);
+}
 
 /* =========================================================
    Theme Sheet
@@ -47,12 +76,10 @@ html[data-skin="night-pro"] {
   --sheet-bg: rgba(10, 14, 16, 0.92);
 }
 
-
-
-
 /* =========================================================
    System dark (ONLY when user has NOT forced light/dark)
    ========================================================= */
+
 @media (prefers-color-scheme: dark) {
   :root:not(.light):not(.dark) {
     --app-bg: #0b1220;
@@ -67,25 +94,36 @@ html[data-skin="night-pro"] {
     --border: rgba(229, 231, 235, 0.12);
     --ring: rgba(96, 165, 250, 0.45);
 
-    /* Classic dark background layer */
+    /* Classic dark background layer (fallback) */
     --bg-layer:
       radial-gradient(900px 520px at 50% -80px, rgba(96, 165, 250, 0.10), transparent 60%),
       radial-gradient(900px 700px at 20% 65%, rgba(16, 185, 129, 0.06), transparent 60%),
       radial-gradient(900px 700px at 80% 65%, rgba(59, 130, 246, 0.06), transparent 60%),
       linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
 
+    /* Breathing jewel (system dark baseline) */
+    --breath-glow: rgba(96, 165, 250, 0.18);
+    --breath-rim: rgba(255, 255, 255, 0.14);
+    --breath-inner-rim: rgba(0, 0, 0, 0.28);
+
     --breath-fill: radial-gradient(circle at 35% 30%,
         rgba(255, 255, 255, 0.18),
         rgba(96, 165, 250, 0.16) 35%,
         rgba(59, 130, 246, 0.14) 65%,
         rgba(16, 185, 129, 0.10));
-    --breath-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+
+    --breath-shadow:
+      0 22px 70px rgba(0, 0, 0, 0.58),
+      0 0 0 1px var(--breath-inner-rim) inset,
+      0 0 0 1px var(--breath-rim),
+      0 10px 34px rgba(0, 0, 0, 0.42),
+      0 0 46px var(--breath-glow);
   }
 }
 
 /* =========================================================
    Manual light / dark (ThemeToggle sets html.light / html.dark)
-   IMPORTANT: this must target html itself (not "html.dark :root")
+   IMPORTANT: target html itself (not "html.dark :root")
    ========================================================= */
 
 html.light {
@@ -102,7 +140,7 @@ html.light {
   --border: rgba(0, 0, 0, 0.10);
   --ring: rgba(14, 165, 233, 0.55);
 
-  /* Classic light background layer */
+  /* Classic light background layer (fallback) */
   --bg-layer:
     radial-gradient(1200px 700px at 30% 10%, rgba(14, 165, 233, 0.10), transparent 60%),
     radial-gradient(900px 600px at 70% 30%, rgba(14, 165, 233, 0.06), transparent 60%),
@@ -122,23 +160,34 @@ html.dark {
   --border: rgba(229, 231, 235, 0.12);
   --ring: rgba(96, 165, 250, 0.45);
 
-  /* Classic dark background layer */
+  /* Classic dark background layer (fallback) */
   --bg-layer:
     radial-gradient(900px 520px at 50% -80px, rgba(96, 165, 250, 0.10), transparent 60%),
     radial-gradient(900px 700px at 20% 65%, rgba(16, 185, 129, 0.06), transparent 60%),
     radial-gradient(900px 700px at 80% 65%, rgba(59, 130, 246, 0.06), transparent 60%),
     linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
 
+  /* Breathing jewel (manual dark baseline) */
+  --breath-glow: rgba(96, 165, 250, 0.18);
+  --breath-rim: rgba(255, 255, 255, 0.14);
+  --breath-inner-rim: rgba(0, 0, 0, 0.28);
+
   --breath-fill: radial-gradient(circle at 35% 30%,
       rgba(255, 255, 255, 0.18),
       rgba(96, 165, 250, 0.16) 35%,
       rgba(59, 130, 246, 0.14) 65%,
       rgba(16, 185, 129, 0.10));
-  --breath-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+
+  --breath-shadow:
+    0 22px 70px rgba(0, 0, 0, 0.58),
+    0 0 0 1px var(--breath-inner-rim) inset,
+    0 0 0 1px var(--breath-rim),
+    0 10px 34px rgba(0, 0, 0, 0.42),
+    0 0 46px var(--breath-glow);
 }
 
 /* =========================================================
-   App background + bg-layer
+   App background + bg-layer (SINGLE source of truth)
    ========================================================= */
 
 body {
@@ -153,14 +202,13 @@ body::before {
   inset: 0;
   pointer-events: none;
   z-index: 0;
+
   background: var(--bg-layer, none);
   opacity: var(--bg-opacity, 1);
 
-  background: var(--bg-layer);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-
 }
 
 #__next,
@@ -169,8 +217,10 @@ main {
   z-index: 1;
 }
 
+/* =========================================================
+   iOS/iPadOS: stabil viewport-høyde (hindrer rare bugs)
+   ========================================================= */
 
-/* iOS/iPadOS: stabil viewport-høyde (hindrer rare “kutt”/scroll-bugs) */
 html,
 body {
   height: 100%;
@@ -183,20 +233,19 @@ body {
   }
 }
 
-
-
 /* =========================================================
    SKINS (html[data-skin="..."])
    NOTE: data-skin comes from AppProviders/appPrefs
    ========================================================= */
 
-/* Classic skin: just keeps the base. (Optional: keep explicit) */
-html[data-skin="classic"] { }
+/* Classic skin: base only */
+html[data-skin="classic"] {}
 
 /* ---------- FLOATING (day) ---------- */
 html[data-skin="floating"] {
   --ring: rgba(14, 165, 233, 0.55);
 
+  /* fallback bg-layer (will be overridden by image later if provided) */
   --bg-layer:
     radial-gradient(1100px 800px at 50% 15%, rgba(14, 165, 233, 0.18), transparent 62%),
     radial-gradient(900px 700px at 30% 45%, rgba(14, 165, 233, 0.10), transparent 62%),
@@ -208,12 +257,27 @@ html[data-skin="floating"] {
       transparent 26px),
     linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(248, 251, 255, 1));
 
+  /* Breathing jewel (floating day) */
+  --breath-glow: rgba(56, 189, 248, 0.26);
+  --breath-rim: rgba(255, 255, 255, 0.34);
+  --breath-inner-rim: rgba(0, 0, 0, 0.03);
+
   --breath-fill: radial-gradient(circle at 35% 30%,
       rgba(255, 255, 255, 0.98),
       rgba(186, 230, 253, 0.92) 35%,
       rgba(125, 211, 252, 0.84) 70%,
       rgba(56, 189, 248, 0.72));
-  --breath-shadow: 0 14px 40px rgba(14, 165, 233, 0.10);
+
+  --breath-shadow:
+    0 20px 60px rgba(14, 165, 233, 0.10),
+    0 0 0 1px var(--breath-inner-rim) inset,
+    0 0 0 1px var(--breath-rim),
+    0 10px 28px rgba(0, 0, 0, 0.08),
+    0 0 48px var(--breath-glow);
+
+  /* Ready for panel polish (wired later) */
+  --br-grain-opacity: 0.045;
+  --br-panel-shadow: 0 16px 46px rgba(14, 165, 233, 0.10);
 }
 
 /* ---------- FLOATING (night) ---------- */
@@ -233,12 +297,27 @@ html.dark[data-skin="floating"] {
 
   --ring: rgba(96, 165, 250, 0.50);
 
+  /* Breathing jewel (floating night) */
+  --breath-glow: rgba(96, 165, 250, 0.22);
+  --breath-rim: rgba(255, 255, 255, 0.16);
+  --breath-inner-rim: rgba(0, 0, 0, 0.30);
+
   --breath-fill: radial-gradient(circle at 35% 30%,
       rgba(255, 255, 255, 0.18),
       rgba(96, 165, 250, 0.16) 35%,
       rgba(59, 130, 246, 0.14) 65%,
       rgba(16, 185, 129, 0.10));
-  --breath-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+
+  --breath-shadow:
+    0 24px 76px rgba(0, 0, 0, 0.60),
+    0 0 0 1px var(--breath-inner-rim) inset,
+    0 0 0 1px var(--breath-rim),
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    0 0 52px var(--breath-glow);
+
+  /* Ready for panel polish (wired later) */
+  --br-grain-opacity: 0.055;
+  --br-panel-shadow: 0 22px 64px rgba(0, 0, 0, 0.55);
 }
 
 /* ---------- NATURE (day) ---------- */
@@ -253,12 +332,27 @@ html[data-skin="nature"] {
     conic-gradient(from 220deg at 80% 30%, rgba(47, 133, 90, 0.07), transparent 45%, rgba(47, 133, 90, 0.05)),
     linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(249, 255, 251, 1));
 
+  /* Breathing jewel (nature day) */
+  --breath-glow: rgba(52, 211, 153, 0.20);
+  --breath-rim: rgba(255, 255, 255, 0.32);
+  --breath-inner-rim: rgba(0, 0, 0, 0.03);
+
   --breath-fill: radial-gradient(circle at 35% 30%,
       rgba(255, 255, 255, 0.98),
       rgba(187, 247, 208, 0.55) 40%,
       rgba(134, 239, 172, 0.35) 70%,
       rgba(47, 133, 90, 0.18));
-  --breath-shadow: 0 14px 40px rgba(47, 133, 90, 0.10);
+
+  --breath-shadow:
+    0 20px 60px rgba(47, 133, 90, 0.10),
+    0 0 0 1px var(--breath-inner-rim) inset,
+    0 0 0 1px var(--breath-rim),
+    0 10px 28px rgba(0, 0, 0, 0.08),
+    0 0 46px var(--breath-glow);
+
+  /* Ready for panel polish (wired later) */
+  --br-grain-opacity: 0.04;
+  --br-panel-shadow: 0 16px 46px rgba(47, 133, 90, 0.10);
 }
 
 /* ---------- NATURE (night) ---------- */
@@ -275,17 +369,30 @@ html.dark[data-skin="nature"] {
 
   --ring: rgba(52, 211, 153, 0.45);
 
+  /* Breathing jewel (nature night) */
+  --breath-glow: rgba(52, 211, 153, 0.18);
+  --breath-rim: rgba(255, 255, 255, 0.15);
+  --breath-inner-rim: rgba(0, 0, 0, 0.30);
+
   --breath-fill: radial-gradient(circle at 35% 30%,
       rgba(255, 255, 255, 0.16),
       rgba(52, 211, 153, 0.14) 35%,
       rgba(16, 185, 129, 0.12) 65%,
       rgba(34, 197, 94, 0.08));
-  --breath-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+
+  --breath-shadow:
+    0 24px 76px rgba(0, 0, 0, 0.60),
+    0 0 0 1px var(--breath-inner-rim) inset,
+    0 0 0 1px var(--breath-rim),
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    0 0 50px var(--breath-glow);
+
+  /* Ready for panel polish (wired later) */
+  --br-grain-opacity: 0.055;
+  --br-panel-shadow: 0 22px 64px rgba(0, 0, 0, 0.55);
 }
 
-/* ---------- NIGHT PRO (always “nighty”) ----------
-   IMPORTANT: matches devtools dataset: "night-pro"
-*/
+/* ---------- NIGHT PRO (always “nighty”) ---------- */
 html[data-skin="night-pro"] {
   --app-bg: #070a0c;
   --text: rgba(255, 255, 255, 0.92);
@@ -305,13 +412,240 @@ html[data-skin="night-pro"] {
     radial-gradient(900px 700px at 80% 65%, rgba(96, 165, 250, 0.06), transparent 60%),
     linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
 
+  /* Breathing jewel (night-pro) */
+  --breath-glow: rgba(96, 165, 250, 0.24);
+  --breath-rim: rgba(255, 255, 255, 0.16);
+  --breath-inner-rim: rgba(0, 0, 0, 0.32);
+
   --breath-fill: radial-gradient(circle at 35% 30%,
       rgba(255, 255, 255, 0.18),
       rgba(96, 165, 250, 0.16) 35%,
       rgba(59, 130, 246, 0.14) 65%,
       rgba(16, 185, 129, 0.10));
-  --breath-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+
+  --breath-shadow:
+    0 26px 84px rgba(0, 0, 0, 0.66),
+    0 0 0 1px var(--breath-inner-rim) inset,
+    0 0 0 1px var(--breath-rim),
+    0 12px 44px rgba(0, 0, 0, 0.50),
+    0 0 56px var(--breath-glow);
+
+  /* Ready for panel polish (wired later) */
+  --br-grain-opacity: 0.06;
+  --br-panel-shadow: 0 26px 74px rgba(0, 0, 0, 0.62);
 }
+
+/* =========================================================
+   Premium glass buttons (tokens only)
+   ========================================================= */
+
+:root {
+  /* Button look (default/classic-ish) */
+  --btn-bg: var(--surface);
+  --btn-bg-hover: var(--surface-hover);
+  --btn-border: var(--border);
+  --btn-border-strong: var(--border);
+  --btn-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+  --btn-shadow-hover: 0 6px 18px rgba(0, 0, 0, 0.08);
+  --btn-pressed-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.06);
+  --btn-highlight: rgba(255, 255, 255, 0.45);
+  --btn-ring: var(--ring);
+}
+
+html[data-skin="classic"] {
+  --btn-bg: var(--surface);
+  --btn-bg-hover: var(--surface-hover);
+  --btn-border: var(--border);
+  --btn-border-strong: var(--border);
+  --btn-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+  --btn-shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.09);
+  --btn-highlight: rgba(255, 255, 255, 0.40);
+}
+
+html[data-skin="floating"] {
+  --btn-bg: rgba(255, 255, 255, 0.60);
+  --btn-bg-hover: rgba(255, 255, 255, 0.72);
+  --btn-border: rgba(255, 255, 255, 0.55);
+  --btn-border-strong: rgba(14, 165, 233, 0.38);
+  --btn-shadow: 0 10px 30px rgba(0, 0, 0, 0.10);
+  --btn-shadow-hover: 0 16px 40px rgba(0, 0, 0, 0.14);
+  --btn-highlight: rgba(255, 255, 255, 0.55);
+}
+
+/* ---------- FLOATING (night buttons) ---------- */
+html.dark[data-skin="floating"] {
+  --btn-bg: rgba(17, 24, 39, 0.56);
+  --btn-bg-hover: rgba(17, 24, 39, 0.70);
+  --btn-border: rgba(255, 255, 255, 0.13);
+  --btn-border-strong: rgba(96, 165, 250, 0.32);
+  --btn-shadow: 0 12px 34px rgba(0, 0, 0, 0.40);
+  --btn-shadow-hover: 0 18px 44px rgba(0, 0, 0, 0.48);
+  --btn-highlight: rgba(255, 255, 255, 0.10);
+}
+
+html[data-skin="nature"] {
+  --btn-bg: rgba(255, 255, 255, 0.62);
+  --btn-bg-hover: rgba(255, 255, 255, 0.74);
+  --btn-border: rgba(255, 255, 255, 0.56);
+  --btn-border-strong: rgba(47, 133, 90, 0.38);
+  --btn-shadow: 0 10px 30px rgba(0, 0, 0, 0.10);
+  --btn-shadow-hover: 0 16px 40px rgba(0, 0, 0, 0.14);
+  --btn-highlight: rgba(255, 255, 255, 0.55);
+}
+
+/* ---------- NATURE (night buttons) ---------- */
+html.dark[data-skin="nature"] {
+  --btn-bg: rgba(10, 20, 16, 0.60);
+  --btn-bg-hover: rgba(10, 20, 16, 0.74);
+  --btn-border: rgba(255, 255, 255, 0.13);
+  --btn-border-strong: rgba(52, 211, 153, 0.30);
+  --btn-shadow: 0 12px 34px rgba(0, 0, 0, 0.40);
+  --btn-shadow-hover: 0 18px 44px rgba(0, 0, 0, 0.48);
+  --btn-highlight: rgba(255, 255, 255, 0.10);
+}
+
+/* ✅ FIXED: must be night-pro, not nightpro */
+html[data-skin="night-pro"] {
+  --btn-bg: rgba(17, 24, 39, 0.58);
+  --btn-bg-hover: rgba(17, 24, 39, 0.72);
+  --btn-border: rgba(255, 255, 255, 0.12);
+  --btn-border-strong: rgba(96, 165, 250, 0.35);
+  --btn-shadow: 0 12px 34px rgba(0, 0, 0, 0.40);
+  --btn-shadow-hover: 0 18px 44px rgba(0, 0, 0, 0.48);
+  --btn-highlight: rgba(255, 255, 255, 0.10);
+}
+
+
+/* =========================================================
+   Range slider polish (BreathingRoom only)
+   Premium glass track + halo thumb
+   Scoped via .pause-range
+   ========================================================= */
+
+.pause-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 30px;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* ---------- TRACK (Chrome / Safari) ---------- */
+
+.pause-range::-webkit-slider-runnable-track {
+  height: 10px;
+  border-radius: 999px;
+
+  background:
+    linear-gradient(to bottom,
+      rgba(255, 255, 255, 0.55),
+      rgba(255, 255, 255, 0.08)),
+    linear-gradient(to right,
+      rgba(255, 255, 255, 0.10),
+      rgba(255, 255, 255, 0.18));
+
+  border: 1px solid rgba(255, 255, 255, 0.22);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 10px 26px rgba(0, 0, 0, 0.08);
+}
+
+/* ---------- THUMB (Chrome / Safari) ---------- */
+
+.pause-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+
+  width: 24px;
+  height: 24px;
+
+  margin-top: -7px;
+
+  border-radius: 999px;
+
+  background:
+    radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.98),
+      rgba(255, 255, 255, 0.90) 40%,
+      rgba(255, 255, 255, 0.70) 70%,
+      rgba(255, 255, 255, 0.55)),
+    linear-gradient(to bottom,
+      rgba(255, 255, 255, 0.55),
+      rgba(255, 255, 255, 0.15));
+
+  border: 1px solid rgba(255, 255, 255, 0.28);
+
+  box-shadow:
+    0 0 18px var(--ring),
+    0 14px 32px rgba(0, 0, 0, 0.18);
+}
+
+/* ---------- TRACK (Firefox) ---------- */
+
+.pause-range::-moz-range-track {
+  height: 10px;
+  border-radius: 999px;
+
+  background:
+    linear-gradient(to bottom,
+      rgba(255, 255, 255, 0.55),
+      rgba(255, 255, 255, 0.08)),
+    linear-gradient(to right,
+      rgba(255, 255, 255, 0.10),
+      rgba(255, 255, 255, 0.18));
+
+  border: 1px solid rgba(255, 255, 255, 0.22);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 10px 26px rgba(0, 0, 0, 0.08);
+}
+
+/* ---------- THUMB (Firefox) ---------- */
+
+.pause-range::-moz-range-thumb {
+
+  width: 24px;
+  height: 24px;
+
+  border-radius: 999px;
+
+  background:
+    radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.98),
+      rgba(255, 255, 255, 0.90) 40%,
+      rgba(255, 255, 255, 0.70) 70%,
+      rgba(255, 255, 255, 0.55)),
+
+    linear-gradient(to bottom,
+      rgba(255, 255, 255, 0.55),
+      rgba(255, 255, 255, 0.15));
+
+  border: 1px solid rgba(255, 255, 255, 0.28);
+
+  box-shadow:
+    0 0 18px var(--ring),
+    0 14px 32px rgba(0, 0, 0, 0.18);
+}
+
+/* Focus safety */
+
+.pause-range:focus-visible {
+  outline: none;
+}
+
+
+
+
+
+
+
+
+
+
+
 
 /* =========================================================
    Animations (kept)
@@ -382,18 +716,41 @@ html[data-skin="night-pro"] {
   }
 }
 
+
+
 /* =========================================================
-   Public Backgrounds
+   Breathing circle light system
    ========================================================= */
 
-html.light {
+
+@keyframes breathLightDrift {
+  0%   { transform: translate3d(-2%, -2%, 0) scale(1.02); }
+  50%  { transform: translate3d(2%, 1%, 0)  scale(1.06); }
+  100% { transform: translate3d(-2%, -2%, 0) scale(1.02); }
+}
+
+
+
+
+
+/* =========================================================
+   Public Backgrounds (images override bg-layer)
+   - Single system: use --bg-layer only
+   - These override the fallback gradients above
+   ========================================================= */
+
+/* Classic */
+html.light:not([data-skin]),
+html.light[data-skin="classic"] {
   --bg-layer: url("/backgrounds/classic-day.webp");
 }
 
-html.dark {
+html.dark:not([data-skin]),
+html.dark[data-skin="classic"] {
   --bg-layer: url("/backgrounds/classic-night.webp");
 }
 
+/* Floating */
 html.light[data-skin="floating"] {
   --bg-layer: url("/backgrounds/floating-day.webp");
 }
@@ -402,6 +759,7 @@ html.dark[data-skin="floating"] {
   --bg-layer: url("/backgrounds/floating-night.webp");
 }
 
+/* Nature */
 html.light[data-skin="nature"] {
   --bg-layer: url("/backgrounds/nature-day.webp");
 }
@@ -410,73 +768,16 @@ html.dark[data-skin="nature"] {
   --bg-layer: url("/backgrounds/nature-night.webp");
 }
 
+/* Night Pro (always one file) */
 html[data-skin="night-pro"] {
   --bg-layer: url("/backgrounds/nightpro.webp");
 }
 
-body {
-  background: var(--app-bg);
-}
-
-/* Transparent overlay-lag for bakgrunnsillustrasjon */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-
-  background-image: var(--bg-image, none);
-  background-repeat: no-repeat;
-  background-position: center top;
-  background-size: cover;
-
-  opacity: var(--bg-opacity, 1);
-}
-
-/* Appinnhold over overlay */
-#__next,
-main {
-  position: relative;
-  z-index: 1;
-}
-
-/* Classic */
-html[data-skin="classic"].light {
-  --bg-image: url("/backgrounds/classic-day.webp");
-}
-
-html[data-skin="classic"].dark {
-  --bg-image: url("/backgrounds/classic-night.webp");
-}
-
-/* Floating */
-html[data-skin="floating"].light {
-  --bg-image: url("/backgrounds/floating-day.webp");
-}
-
-html[data-skin="floating"].dark {
-  --bg-image: url("/backgrounds/floating-night.webp");
-}
-
-/* Nature */
-html[data-skin="nature"].light {
-  --bg-image: url("/backgrounds/nature-day.webp");
-}
-
-html[data-skin="nature"].dark {
-  --bg-image: url("/backgrounds/nature-night.webp");
-}
-
-/* Night Pro (alltid “natt”-følelse, 1 fil) */
-html[data-skin="night-pro"] {
-  --bg-image: url("/backgrounds/nightpro.webp");
-}
-
-/* ---------- FONT SYSTEM ---------- */
+/* =========================================================
+   Font system
+   ========================================================= */
 
 :root {
-
   /* Body */
   --font-body-stack:
     var(--font-body),
@@ -496,16 +797,11 @@ html[data-skin="night-pro"] {
 
 /* Default text */
 body {
-
   font-family: var(--font-body-stack);
-
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
 }
 
 .font-display {
-
   font-family: var(--font-display-stack);
-
 }
