@@ -1,5 +1,3 @@
-
-
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
@@ -8,8 +6,6 @@ import { Inter, Fraunces } from "next/font/google";
 import "./globals.css";
 
 import AppProviders from "./AppProviders";
-
-
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -71,19 +67,27 @@ export default function RootLayout({
 
     // Skin
     var skin = localStorage.getItem('${SKIN_KEY}');
-    if (skin !== 'classic' && skin !== 'floating' && skin !== 'nature' && skin !== 'nightpro') skin = 'classic';
+    if (
+      skin !== 'classic' &&
+      skin !== 'floating' &&
+      skin !== 'nature' &&
+      skin !== 'nightpro' &&
+      skin !== 'desert' &&
+      skin !== 'ocean' &&
+      skin !== 'peaceful' &&
+      skin !== 'winter'
+    ) skin = 'classic';
 
-    // Nightpro i light -> fallback
-    var isDark = root.classList.contains('dark');
-    if (skin === 'nightpro' && !isDark) skin = 'classic';
+    // CSS selector bruker kebab-case: html[data-skin="night-pro"]
+    if (skin === 'nightpro') skin = 'night-pro';
 
     root.dataset.skin = skin;
   } catch (e) {}
 })();`;
 
-
   return (
-    <html lang="en"
+    <html
+      lang="en"
       suppressHydrationWarning
       className={`${inter.variable} ${fraunces.variable}`}
     >
@@ -91,7 +95,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
       </head>
 
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

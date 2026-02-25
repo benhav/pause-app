@@ -381,12 +381,14 @@ export default function BreathingRoomClient() {
                   <div className="flex justify-center">
                     <div className="max-w-full">
                       <div className="md:hidden whitespace-nowrap">
-                        <Title className="text-4xl leading-none">
+                        <Title className="hero-title text-4xl leading-none">
                           {t.breathingRoomTitle}
                         </Title>
                       </div>
                       <div className="hidden md:block">
-                        <Title>{t.breathingRoomTitle}</Title>
+                        <Title className="hero-title">
+                          {t.breathingRoomTitle}
+                        </Title>
                       </div>
                     </div>
                   </div>

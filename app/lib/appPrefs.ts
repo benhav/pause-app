@@ -1,6 +1,14 @@
 // app/lib/appPrefs.ts
 
-export type ThemeSkin = "classic" | "floating" | "nature" | "nightpro";
+export type ThemeSkin =
+  | "classic"
+  | "floating"
+  | "nature"
+  | "nightpro"
+  | "desert"
+  | "ocean"
+  | "peaceful"
+  | "winter";
 
 export const PREFS_KEYS = {
   proDemo: "pause-pro-demo",
@@ -24,13 +32,23 @@ export function writeLS(key: string, value: string) {
 }
 
 /**
- * Vi lagrer ThemeSkin i LS som: "classic" | "floating" | "nature" | "nightpro"
+ * Vi lagrer ThemeSkin i LS som:
+ * "classic" | "floating" | "nature" | "nightpro" | "desert" | "ocean" | "peaceful" | "winter"
+ *
  * men CSS-selectors bruker kebab-case for night pro:
  * html[data-skin="night-pro"]
  */
 export function skinToCssValue(
   s: ThemeSkin
-): "classic" | "floating" | "nature" | "night-pro" {
+):
+  | "classic"
+  | "floating"
+  | "nature"
+  | "night-pro"
+  | "desert"
+  | "ocean"
+  | "peaceful"
+  | "winter" {
   return s === "nightpro" ? "night-pro" : s;
 }
 

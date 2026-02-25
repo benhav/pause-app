@@ -1,12 +1,36 @@
 // app/lib/skin.ts
-export type Skin = "classic" | "floating" | "nature" | "night-pro";
+// NOTE:
+// Legacy skin engine. Main skin handling now lives in appPrefs/AppProviders.
+// This file is kept for backward compatibility and any remaining call sites.
+
+export type Skin =
+  | "classic"
+  | "floating"
+  | "nature"
+  | "night-pro"
+  | "desert"
+  | "ocean"
+  | "peaceful"
+  | "winter";
 
 export const SKIN_KEY = "pause-skin";
 
 export function normalizeSkin(v: string | null | undefined): Skin {
-  if (v === "classic" || v === "floating" || v === "nature" || v === "night-pro") return v;
+  if (
+    v === "classic" ||
+    v === "floating" ||
+    v === "nature" ||
+    v === "night-pro" ||
+    v === "desert" ||
+    v === "ocean" ||
+    v === "peaceful" ||
+    v === "winter"
+  )
+    return v;
+
   // støtt gamle navn så du slipper kluss
   if (v === "nightpro") return "night-pro";
+
   return "classic";
 }
 

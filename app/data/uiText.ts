@@ -59,7 +59,13 @@ export const UI_TEXT = {
     followRhythm:
       "Follow the rhythm",
 
-    // ---------- THEME (EN) ----------
+    // =====================================================
+    // THEME (EN)
+    // NOTE:
+    // These are UI preview/grid names only.
+    // Internal skin ids remain:
+    // classic | floating | nature | nightpro | desert | ocean | peaceful | winter
+    // =====================================================
 
     themeTitle: "Theme",
 
@@ -77,6 +83,20 @@ export const UI_TEXT = {
 
     themeNightproNote:
       "(always dark)",
+
+    // --- NEW THEMES ---
+
+    themeDesert:
+      "Quiet Dunes (Pro)",
+
+    themeOcean:
+      "Gentle Ocean (Pro)",
+
+    themePeaceful:
+      "Morning Meadow (Pro)",
+
+    themeWinter:
+      "Winter Silence (Pro)",
 
     themeProLocked:
       "This is a Pro feature.",
@@ -191,7 +211,10 @@ export const UI_TEXT = {
     followRhythm:
       "Følg rytmen",
 
-    // ---------- THEME (NO) ----------
+    // =====================================================
+    // THEME (NO)
+    // UI preview/grid navn
+    // =====================================================
 
     themeTitle: "Tema",
 
@@ -209,6 +232,20 @@ export const UI_TEXT = {
 
     themeNightproNote:
       "(alltid nattmodus)",
+
+    // --- NEW THEMES ---
+
+    themeDesert:
+      "Stille sanddyner (Pro)",
+
+    themeOcean:
+      "Rolig hav (Pro)",
+
+    themePeaceful:
+      "Morgeneng (Pro)",
+
+    themeWinter:
+      "Vinterro (Pro)",
 
     themeProLocked:
       "Dette er en Pro-funksjon.",

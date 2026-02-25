@@ -436,6 +436,443 @@ html[data-skin="night-pro"] {
 }
 
 /* =========================================================
+   NEW SKINS (Added): Desert / Ocean / Peaceful / Winter
+   - Carefully tuned “less is more” jewel + glass
+   - Images override bg-layer later (Public Backgrounds)
+   ========================================================= */
+
+/* ---------- DESERT (day) ---------- */
+html[data-skin="desert"] {
+  /* Warm sand accent */
+  --ring: rgba(245, 158, 11, 0.45);
+
+  /* fallback gradients (image will override) */
+  --bg-layer:
+    radial-gradient(1100px 800px at 55% 18%, rgba(245, 158, 11, 0.12), transparent 62%),
+    radial-gradient(900px 700px at 25% 55%, rgba(251, 191, 36, 0.10), transparent 62%),
+    radial-gradient(900px 700px at 80% 60%, rgba(248, 113, 113, 0.05), transparent 62%),
+    linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 251, 235, 1));
+
+  /* Breathing jewel (desert day = warm sand glass) */
+  --breath-glow: rgba(251, 191, 36, 0.18);
+  --breath-rim: rgba(255, 255, 255, 0.32);
+  --breath-inner-rim: rgba(0, 0, 0, 0.03);
+
+  --breath-fill: radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.98),
+      rgba(254, 243, 199, 0.88) 36%,
+      rgba(253, 230, 138, 0.74) 70%,
+      rgba(245, 158, 11, 0.34));
+
+  --breath-shadow:
+    0 20px 60px rgba(245, 158, 11, 0.08),
+    0 0 0 1px var(--breath-inner-rim) inset,
+    0 0 0 1px var(--breath-rim),
+    0 10px 28px rgba(0, 0, 0, 0.08),
+    0 0 44px var(--breath-glow);
+
+  --br-grain-opacity: 0.04;
+  --br-panel-shadow: 0 16px 46px rgba(245, 158, 11, 0.08);
+}
+
+/* ---------- DESERT (night) ---------- */
+html.dark[data-skin="desert"] {
+  /* keep global dark text/surfaces; only tune accent + jewel */
+  --ring: rgba(251, 191, 36, 0.32);
+
+  --bg-layer:
+    radial-gradient(1100px 800px at 55% 0%, rgba(251, 191, 36, 0.10), transparent 62%),
+    radial-gradient(900px 700px at 25% 65%, rgba(245, 158, 11, 0.06), transparent 62%),
+    radial-gradient(900px 700px at 80% 70%, rgba(59, 130, 246, 0.05), transparent 62%),
+    linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
+
+  /* Breathing jewel (desert night = warm dusk) */
+  --breath-glow: rgba(251, 191, 36, 0.14);
+  --breath-rim: rgba(255, 255, 255, 0.14);
+  --breath-inner-rim: rgba(0, 0, 0, 0.30);
+
+  --breath-fill: radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.16),
+      rgba(251, 191, 36, 0.12) 35%,
+      rgba(245, 158, 11, 0.10) 65%,
+      rgba(59, 130, 246, 0.06));
+
+  --breath-shadow:
+    0 24px 76px rgba(0, 0, 0, 0.60),
+    0 0 0 1px var(--breath-inner-rim) inset,
+    0 0 0 1px var(--breath-rim),
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    0 0 48px var(--breath-glow);
+
+  --br-grain-opacity: 0.055;
+  --br-panel-shadow: 0 22px 64px rgba(0, 0, 0, 0.55);
+}
+
+/* ✅ Auto-dark (no forced html.light/html.dark) */
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark)[data-skin="desert"] {
+    --ring: rgba(251, 191, 36, 0.32);
+
+    --bg-layer:
+      radial-gradient(1100px 800px at 55% 0%, rgba(251, 191, 36, 0.10), transparent 62%),
+      radial-gradient(900px 700px at 25% 65%, rgba(245, 158, 11, 0.06), transparent 62%),
+      radial-gradient(900px 700px at 80% 70%, rgba(59, 130, 246, 0.05), transparent 62%),
+      linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
+
+    --breath-glow: rgba(251, 191, 36, 0.14);
+    --breath-rim: rgba(255, 255, 255, 0.14);
+    --breath-inner-rim: rgba(0, 0, 0, 0.30);
+
+    --breath-fill: radial-gradient(circle at 35% 30%,
+        rgba(255, 255, 255, 0.16),
+        rgba(251, 191, 36, 0.12) 35%,
+        rgba(245, 158, 11, 0.10) 65%,
+        rgba(59, 130, 246, 0.06));
+
+    --breath-shadow:
+      0 24px 76px rgba(0, 0, 0, 0.60),
+      0 0 0 1px var(--breath-inner-rim) inset,
+      0 0 0 1px var(--breath-rim),
+      0 12px 40px rgba(0, 0, 0, 0.45),
+      0 0 48px var(--breath-glow);
+
+    --br-grain-opacity: 0.055;
+    --br-panel-shadow: 0 22px 64px rgba(0, 0, 0, 0.55);
+  }
+}
+
+/* ---------- OCEAN (day) ---------- */
+html[data-skin="ocean"] {
+  /* Warm, calm sea accent (soft cyan) */
+  --ring: rgba(14, 165, 233, 0.45);
+
+  --bg-layer:
+    radial-gradient(1100px 800px at 55% 12%, rgba(14, 165, 233, 0.12), transparent 62%),
+    radial-gradient(900px 700px at 25% 55%, rgba(34, 211, 238, 0.10), transparent 62%),
+    radial-gradient(900px 700px at 80% 60%, rgba(59, 130, 246, 0.06), transparent 62%),
+    linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(244, 251, 255, 1));
+
+  /* Breathing jewel (ocean day = warm wave glass) */
+  --breath-glow: rgba(34, 211, 238, 0.18);
+  --breath-rim: rgba(255, 255, 255, 0.34);
+  --breath-inner-rim: rgba(0, 0, 0, 0.03);
+
+  --breath-fill: radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.98),
+      rgba(186, 230, 253, 0.86) 35%,
+      rgba(165, 243, 252, 0.66) 68%,
+      rgba(34, 211, 238, 0.32));
+
+  --breath-shadow:
+    0 20px 60px rgba(14, 165, 233, 0.08),
+    0 0 0 1px var(--breath-inner-rim) inset,
+    0 0 0 1px var(--breath-rim),
+    0 10px 28px rgba(0, 0, 0, 0.08),
+    0 0 46px var(--breath-glow);
+
+  --br-grain-opacity: 0.04;
+  --br-panel-shadow: 0 16px 46px rgba(14, 165, 233, 0.09);
+}
+
+/* ---------- OCEAN (night) ---------- */
+html.dark[data-skin="ocean"] {
+  --ring: rgba(34, 211, 238, 0.28);
+
+  --bg-layer:
+    radial-gradient(1100px 800px at 55% 0%, rgba(34, 211, 238, 0.10), transparent 62%),
+    radial-gradient(900px 700px at 25% 65%, rgba(14, 165, 233, 0.06), transparent 62%),
+    radial-gradient(900px 700px at 80% 70%, rgba(96, 165, 250, 0.06), transparent 62%),
+    linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
+
+  /* Breathing jewel (ocean night = deep, calm water) */
+  --breath-glow: rgba(34, 211, 238, 0.14);
+  --breath-rim: rgba(255, 255, 255, 0.14);
+  --breath-inner-rim: rgba(0, 0, 0, 0.30);
+
+  --breath-fill: radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.16),
+      rgba(34, 211, 238, 0.12) 35%,
+      rgba(14, 165, 233, 0.10) 65%,
+      rgba(59, 130, 246, 0.07));
+
+  --breath-shadow:
+    0 24px 76px rgba(0, 0, 0, 0.60),
+    0 0 0 1px var(--breath-inner-rim) inset,
+    0 0 0 1px var(--breath-rim),
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    0 0 48px var(--breath-glow);
+
+  --br-grain-opacity: 0.055;
+  --br-panel-shadow: 0 22px 64px rgba(0, 0, 0, 0.55);
+}
+
+/* ✅ Auto-dark (no forced html.light/html.dark) */
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark)[data-skin="ocean"] {
+    --ring: rgba(34, 211, 238, 0.28);
+
+    --bg-layer:
+      radial-gradient(1100px 800px at 55% 0%, rgba(34, 211, 238, 0.10), transparent 62%),
+      radial-gradient(900px 700px at 25% 65%, rgba(14, 165, 233, 0.06), transparent 62%),
+      radial-gradient(900px 700px at 80% 70%, rgba(96, 165, 250, 0.06), transparent 62%),
+      linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
+
+    --breath-glow: rgba(34, 211, 238, 0.14);
+    --breath-rim: rgba(255, 255, 255, 0.14);
+    --breath-inner-rim: rgba(0, 0, 0, 0.30);
+
+    --breath-fill: radial-gradient(circle at 35% 30%,
+        rgba(255, 255, 255, 0.16),
+        rgba(34, 211, 238, 0.12) 35%,
+        rgba(14, 165, 233, 0.10) 65%,
+        rgba(59, 130, 246, 0.07));
+
+    --breath-shadow:
+      0 24px 76px rgba(0, 0, 0, 0.60),
+      0 0 0 1px var(--breath-inner-rim) inset,
+      0 0 0 1px var(--breath-rim),
+      0 12px 40px rgba(0, 0, 0, 0.45),
+      0 0 48px var(--breath-glow);
+
+    --br-grain-opacity: 0.055;
+    --br-panel-shadow: 0 22px 64px rgba(0, 0, 0, 0.55);
+  }
+}
+
+/* ---------- PEACEFUL (day) ---------- */
+html[data-skin="peaceful"] {
+  /* Soft sunrise calm (warm neutral) */
+  --ring: rgba(249, 115, 22, 0.32);
+
+  --bg-layer:
+    radial-gradient(1100px 800px at 55% 16%, rgba(249, 115, 22, 0.08), transparent 62%),
+    radial-gradient(900px 700px at 25% 58%, rgba(245, 158, 11, 0.07), transparent 62%),
+    radial-gradient(900px 700px at 80% 62%, rgba(14, 165, 233, 0.05), transparent 62%),
+    linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 252, 248, 1));
+
+  /* Breathing jewel (peaceful day = gentle warmth) */
+  --breath-glow: rgba(249, 115, 22, 0.14);
+  --breath-rim: rgba(255, 255, 255, 0.34);
+  --breath-inner-rim: rgba(0, 0, 0, 0.03);
+
+  --breath-fill: radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.98),
+      rgba(255, 237, 213, 0.82) 35%,
+      rgba(254, 215, 170, 0.62) 68%,
+      rgba(249, 115, 22, 0.22));
+
+  --breath-shadow:
+    0 20px 60px rgba(249, 115, 22, 0.06),
+    0 0 0 1px var(--breath-inner-rim) inset,
+    0 0 0 1px var(--breath-rim),
+    0 10px 28px rgba(0, 0, 0, 0.08),
+    0 0 44px var(--breath-glow);
+
+  --br-grain-opacity: 0.038;
+  --br-panel-shadow: 0 16px 46px rgba(0, 0, 0, 0.08);
+}
+
+/* ---------- PEACEFUL (night) ---------- */
+html.dark[data-skin="peaceful"] {
+  /* moonlight calm */
+  --ring: rgba(96, 165, 250, 0.28);
+
+  --bg-layer:
+    radial-gradient(1100px 800px at 55% 0%, rgba(96, 165, 250, 0.10), transparent 62%),
+    radial-gradient(900px 700px at 25% 65%, rgba(14, 165, 233, 0.05), transparent 62%),
+    radial-gradient(900px 700px at 80% 70%, rgba(255, 255, 255, 0.04), transparent 62%),
+    linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
+
+  /* Breathing jewel (peaceful night = quiet moon glow) */
+  --breath-glow: rgba(96, 165, 250, 0.14);
+  --breath-rim: rgba(255, 255, 255, 0.14);
+  --breath-inner-rim: rgba(0, 0, 0, 0.30);
+
+  --breath-fill: radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.16),
+      rgba(96, 165, 250, 0.12) 35%,
+      rgba(59, 130, 246, 0.10) 65%,
+      rgba(255, 255, 255, 0.06));
+
+  --breath-shadow:
+    0 24px 76px rgba(0, 0, 0, 0.60),
+    0 0 0 1px var(--breath-inner-rim) inset,
+    0 0 0 1px var(--breath-rim),
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    0 0 48px var(--breath-glow);
+
+  --br-grain-opacity: 0.055;
+  --br-panel-shadow: 0 22px 64px rgba(0, 0, 0, 0.55);
+}
+
+/* ✅ Auto-dark (no forced html.light/html.dark) */
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark)[data-skin="peaceful"] {
+    --ring: rgba(96, 165, 250, 0.28);
+
+    --bg-layer:
+      radial-gradient(1100px 800px at 55% 0%, rgba(96, 165, 250, 0.10), transparent 62%),
+      radial-gradient(900px 700px at 25% 65%, rgba(14, 165, 233, 0.05), transparent 62%),
+      radial-gradient(900px 700px at 80% 70%, rgba(255, 255, 255, 0.04), transparent 62%),
+      linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
+
+    --breath-glow: rgba(96, 165, 250, 0.14);
+    --breath-rim: rgba(255, 255, 255, 0.14);
+    --breath-inner-rim: rgba(0, 0, 0, 0.30);
+
+    --breath-fill: radial-gradient(circle at 35% 30%,
+        rgba(255, 255, 255, 0.16),
+        rgba(96, 165, 250, 0.12) 35%,
+        rgba(59, 130, 246, 0.10) 65%,
+        rgba(255, 255, 255, 0.06));
+
+    --breath-shadow:
+      0 24px 76px rgba(0, 0, 0, 0.60),
+      0 0 0 1px var(--breath-inner-rim) inset,
+      0 0 0 1px var(--breath-rim),
+      0 12px 40px rgba(0, 0, 0, 0.45),
+      0 0 48px var(--breath-glow);
+
+    --br-grain-opacity: 0.055;
+    --br-panel-shadow: 0 22px 64px rgba(0, 0, 0, 0.55);
+  }
+}
+
+/* ---------- WINTER (day) ---------- */
+html[data-skin="winter"] {
+  /* Snow + soft sunlight (cool) */
+  --ring: rgba(59, 130, 246, 0.35);
+
+  --bg-layer:
+    radial-gradient(1100px 800px at 55% 16%, rgba(96, 165, 250, 0.10), transparent 62%),
+    radial-gradient(900px 700px at 25% 58%, rgba(255, 255, 255, 0.10), transparent 62%),
+    radial-gradient(900px 700px at 80% 62%, rgba(14, 165, 233, 0.06), transparent 62%),
+    linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(248, 251, 255, 1));
+
+  /* Breathing jewel (winter day = soft snow glass) */
+  --breath-glow: rgba(96, 165, 250, 0.16);
+  --breath-rim: rgba(255, 255, 255, 0.36);
+  --breath-inner-rim: rgba(0, 0, 0, 0.03);
+
+  --breath-fill: radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.99),
+      rgba(219, 234, 254, 0.88) 35%,
+      rgba(191, 219, 254, 0.70) 70%,
+      rgba(96, 165, 250, 0.30));
+
+  --breath-shadow:
+    0 20px 60px rgba(96, 165, 250, 0.08),
+    0 0 0 1px var(--breath-inner-rim) inset,
+    0 0 0 1px var(--breath-rim),
+    0 10px 28px rgba(0, 0, 0, 0.08),
+    0 0 46px var(--breath-glow);
+
+  --br-grain-opacity: 0.04;
+  --br-panel-shadow: 0 16px 46px rgba(96, 165, 250, 0.08);
+}
+
+/* ---------- WINTER (night) ---------- */
+html.dark[data-skin="winter"] {
+  /* Northern lights calm */
+  --ring: rgba(52, 211, 153, 0.26);
+
+  --bg-layer:
+    radial-gradient(1100px 800px at 55% 0%, rgba(52, 211, 153, 0.10), transparent 62%),
+    radial-gradient(900px 700px at 25% 65%, rgba(96, 165, 250, 0.06), transparent 62%),
+    radial-gradient(900px 700px at 80% 70%, rgba(59, 130, 246, 0.06), transparent 62%),
+    linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
+
+  /* Breathing jewel (winter night = quiet aurora) */
+  --breath-glow: rgba(52, 211, 153, 0.14);
+  --breath-rim: rgba(255, 255, 255, 0.14);
+  --breath-inner-rim: rgba(0, 0, 0, 0.30);
+
+  --breath-fill: radial-gradient(circle at 35% 30%,
+      rgba(255, 255, 255, 0.16),
+      rgba(52, 211, 153, 0.12) 35%,
+      rgba(96, 165, 250, 0.10) 65%,
+      rgba(59, 130, 246, 0.07));
+
+  --breath-shadow:
+    0 24px 76px rgba(0, 0, 0, 0.60),
+    0 0 0 1px var(--breath-inner-rim) inset,
+    0 0 0 1px var(--breath-rim),
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    0 0 48px var(--breath-glow);
+
+  --br-grain-opacity: 0.055;
+  --br-panel-shadow: 0 22px 64px rgba(0, 0, 0, 0.55);
+}
+
+/* ✅ Auto-dark (no forced html.light/html.dark) */
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark)[data-skin="winter"] {
+    --ring: rgba(52, 211, 153, 0.26);
+
+    --bg-layer:
+      radial-gradient(1100px 800px at 55% 0%, rgba(52, 211, 153, 0.10), transparent 62%),
+      radial-gradient(900px 700px at 25% 65%, rgba(96, 165, 250, 0.06), transparent 62%),
+      radial-gradient(900px 700px at 80% 70%, rgba(59, 130, 246, 0.06), transparent 62%),
+      linear-gradient(180deg, #050708, #0a0f12 60%, #050708);
+
+    --breath-glow: rgba(52, 211, 153, 0.14);
+    --breath-rim: rgba(255, 255, 255, 0.14);
+    --breath-inner-rim: rgba(0, 0, 0, 0.30);
+
+    --breath-fill: radial-gradient(circle at 35% 30%,
+        rgba(255, 255, 255, 0.16),
+        rgba(52, 211, 153, 0.12) 35%,
+        rgba(96, 165, 250, 0.10) 65%,
+        rgba(59, 130, 246, 0.07));
+
+    --breath-shadow:
+      0 24px 76px rgba(0, 0, 0, 0.60),
+      0 0 0 1px var(--breath-inner-rim) inset,
+      0 0 0 1px var(--breath-rim),
+      0 12px 40px rgba(0, 0, 0, 0.45),
+      0 0 48px var(--breath-glow);
+
+    --br-grain-opacity: 0.055;
+    --br-panel-shadow: 0 22px 64px rgba(0, 0, 0, 0.55);
+  }
+}
+
+/* =====================================================
+   WINTER — DAY readability fix
+   Only applies when NOT dark mode
+   ===================================================== */
+
+html:not(.dark)[data-skin="winter"] {
+
+  --bg-layer: rgba(0, 0, 0, 0.32);
+
+  --text: rgba(18, 24, 32, 0.94);
+  --muted: rgba(18, 24, 32, 0.66);
+
+  --text-weight-boost: 520;
+}
+
+
+/* Apple/Calm adaptive readability shadow */
+html:not(.dark)[data-skin="winter"] h1,
+html:not(.dark)[data-skin="winter"] h2,
+html:not(.dark)[data-skin="winter"] h3,
+html:not(.dark)[data-skin="winter"] p {
+
+  text-shadow:
+
+    /* subtil mørk støtte mot trær */
+    0 1px 2px rgba(0,0,0,0.22),
+
+    /* micro outline  */
+    0 0 2px rgba(0,0,0,0.18),
+
+    /* soft glow som samarbeider med solgløden */
+    0 0 14px rgba(255,255,255,0.28);
+
+}
+
+/* =========================================================
    Premium glass buttons (tokens only)
    ========================================================= */
 
@@ -515,6 +952,151 @@ html[data-skin="night-pro"] {
   --btn-highlight: rgba(255, 255, 255, 0.10);
 }
 
+/* =========================================================
+   NEW BUTTON TOKENS (Added): Desert / Ocean / Peaceful / Winter
+   - Day: lighter premium glass
+   - Night: calm deep glass
+   ========================================================= */
+
+/* ---------- DESERT buttons (day) ---------- */
+html[data-skin="desert"] {
+  --btn-bg: rgba(255, 255, 255, 0.62);
+  --btn-bg-hover: rgba(255, 255, 255, 0.74);
+  --btn-border: rgba(255, 255, 255, 0.56);
+  --btn-border-strong: rgba(245, 158, 11, 0.28);
+  --btn-shadow: 0 10px 30px rgba(0, 0, 0, 0.10);
+  --btn-shadow-hover: 0 16px 40px rgba(0, 0, 0, 0.14);
+  --btn-highlight: rgba(255, 255, 255, 0.55);
+}
+
+/* ---------- DESERT buttons (night) ---------- */
+html.dark[data-skin="desert"] {
+  --btn-bg: rgba(17, 24, 39, 0.58);
+  --btn-bg-hover: rgba(17, 24, 39, 0.72);
+  --btn-border: rgba(255, 255, 255, 0.12);
+  --btn-border-strong: rgba(251, 191, 36, 0.22);
+  --btn-shadow: 0 12px 34px rgba(0, 0, 0, 0.40);
+  --btn-shadow-hover: 0 18px 44px rgba(0, 0, 0, 0.48);
+  --btn-highlight: rgba(255, 255, 255, 0.10);
+}
+
+/* ✅ Auto-dark (no forced html.light/html.dark) */
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark)[data-skin="desert"] {
+    --btn-bg: rgba(17, 24, 39, 0.58);
+    --btn-bg-hover: rgba(17, 24, 39, 0.72);
+    --btn-border: rgba(255, 255, 255, 0.12);
+    --btn-border-strong: rgba(251, 191, 36, 0.22);
+    --btn-shadow: 0 12px 34px rgba(0, 0, 0, 0.40);
+    --btn-shadow-hover: 0 18px 44px rgba(0, 0, 0, 0.48);
+    --btn-highlight: rgba(255, 255, 255, 0.10);
+  }
+}
+
+/* ---------- OCEAN buttons (day) ---------- */
+html[data-skin="ocean"] {
+  --btn-bg: rgba(255, 255, 255, 0.62);
+  --btn-bg-hover: rgba(255, 255, 255, 0.74);
+  --btn-border: rgba(255, 255, 255, 0.56);
+  --btn-border-strong: rgba(34, 211, 238, 0.26);
+  --btn-shadow: 0 10px 30px rgba(0, 0, 0, 0.10);
+  --btn-shadow-hover: 0 16px 40px rgba(0, 0, 0, 0.14);
+  --btn-highlight: rgba(255, 255, 255, 0.55);
+}
+
+/* ---------- OCEAN buttons (night) ---------- */
+html.dark[data-skin="ocean"] {
+  --btn-bg: rgba(17, 24, 39, 0.58);
+  --btn-bg-hover: rgba(17, 24, 39, 0.72);
+  --btn-border: rgba(255, 255, 255, 0.12);
+  --btn-border-strong: rgba(34, 211, 238, 0.20);
+  --btn-shadow: 0 12px 34px rgba(0, 0, 0, 0.40);
+  --btn-shadow-hover: 0 18px 44px rgba(0, 0, 0, 0.48);
+  --btn-highlight: rgba(255, 255, 255, 0.10);
+}
+
+/* ✅ Auto-dark (no forced html.light/html.dark) */
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark)[data-skin="ocean"] {
+    --btn-bg: rgba(17, 24, 39, 0.58);
+    --btn-bg-hover: rgba(17, 24, 39, 0.72);
+    --btn-border: rgba(255, 255, 255, 0.12);
+    --btn-border-strong: rgba(34, 211, 238, 0.20);
+    --btn-shadow: 0 12px 34px rgba(0, 0, 0, 0.40);
+    --btn-shadow-hover: 0 18px 44px rgba(0, 0, 0, 0.48);
+    --btn-highlight: rgba(255, 255, 255, 0.10);
+  }
+}
+
+/* ---------- PEACEFUL buttons (day) ---------- */
+html[data-skin="peaceful"] {
+  --btn-bg: rgba(255, 255, 255, 0.62);
+  --btn-bg-hover: rgba(255, 255, 255, 0.74);
+  --btn-border: rgba(255, 255, 255, 0.56);
+  --btn-border-strong: rgba(249, 115, 22, 0.22);
+  --btn-shadow: 0 10px 30px rgba(0, 0, 0, 0.10);
+  --btn-shadow-hover: 0 16px 40px rgba(0, 0, 0, 0.14);
+  --btn-highlight: rgba(255, 255, 255, 0.55);
+}
+
+/* ---------- PEACEFUL buttons (night) ---------- */
+html.dark[data-skin="peaceful"] {
+  --btn-bg: rgba(17, 24, 39, 0.58);
+  --btn-bg-hover: rgba(17, 24, 39, 0.72);
+  --btn-border: rgba(255, 255, 255, 0.12);
+  --btn-border-strong: rgba(96, 165, 250, 0.20);
+  --btn-shadow: 0 12px 34px rgba(0, 0, 0, 0.40);
+  --btn-shadow-hover: 0 18px 44px rgba(0, 0, 0, 0.48);
+  --btn-highlight: rgba(255, 255, 255, 0.10);
+}
+
+/* ✅ Auto-dark (no forced html.light/html.dark) */
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark)[data-skin="peaceful"] {
+    --btn-bg: rgba(17, 24, 39, 0.58);
+    --btn-bg-hover: rgba(17, 24, 39, 0.72);
+    --btn-border: rgba(255, 255, 255, 0.12);
+    --btn-border-strong: rgba(96, 165, 250, 0.20);
+    --btn-shadow: 0 12px 34px rgba(0, 0, 0, 0.40);
+    --btn-shadow-hover: 0 18px 44px rgba(0, 0, 0, 0.48);
+    --btn-highlight: rgba(255, 255, 255, 0.10);
+  }
+}
+
+/* ---------- WINTER buttons (day) ---------- */
+html[data-skin="winter"] {
+  --btn-bg: rgba(255, 255, 255, 0.62);
+  --btn-bg-hover: rgba(255, 255, 255, 0.74);
+  --btn-border: rgba(255, 255, 255, 0.56);
+  --btn-border-strong: rgba(96, 165, 250, 0.24);
+  --btn-shadow: 0 10px 30px rgba(0, 0, 0, 0.10);
+  --btn-shadow-hover: 0 16px 40px rgba(0, 0, 0, 0.14);
+  --btn-highlight: rgba(255, 255, 255, 0.55);
+}
+
+/* ---------- WINTER buttons (night) ---------- */
+html.dark[data-skin="winter"] {
+  --btn-bg: rgba(17, 24, 39, 0.58);
+  --btn-bg-hover: rgba(17, 24, 39, 0.72);
+  --btn-border: rgba(255, 255, 255, 0.12);
+  --btn-border-strong: rgba(52, 211, 153, 0.18);
+  --btn-shadow: 0 12px 34px rgba(0, 0, 0, 0.40);
+  --btn-shadow-hover: 0 18px 44px rgba(0, 0, 0, 0.48);
+  --btn-highlight: rgba(255, 255, 255, 0.10);
+}
+
+/* ✅ Auto-dark (no forced html.light/html.dark) */
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark)[data-skin="winter"] {
+    --btn-bg: rgba(17, 24, 39, 0.58);
+    --btn-bg-hover: rgba(17, 24, 39, 0.72);
+    --btn-border: rgba(255, 255, 255, 0.12);
+    --btn-border-strong: rgba(52, 211, 153, 0.18);
+    --btn-shadow: 0 12px 34px rgba(0, 0, 0, 0.40);
+    --btn-shadow-hover: 0 18px 44px rgba(0, 0, 0, 0.48);
+    --btn-highlight: rgba(255, 255, 255, 0.10);
+  }
+}
 
 /* =========================================================
    Range slider polish (BreathingRoom only)
@@ -587,6 +1169,7 @@ html[data-skin="night-pro"] {
 .pause-range::-moz-range-track {
   height: 10px;
   border-radius: 999px;
+  background: transparent;
 
   background:
     linear-gradient(to bottom,
@@ -635,17 +1218,6 @@ html[data-skin="night-pro"] {
 .pause-range:focus-visible {
   outline: none;
 }
-
-
-
-
-
-
-
-
-
-
-
 
 /* =========================================================
    Animations (kept)
@@ -716,22 +1288,15 @@ html[data-skin="night-pro"] {
   }
 }
 
-
-
 /* =========================================================
    Breathing circle light system
    ========================================================= */
-
 
 @keyframes breathLightDrift {
   0%   { transform: translate3d(-2%, -2%, 0) scale(1.02); }
   50%  { transform: translate3d(2%, 1%, 0)  scale(1.06); }
   100% { transform: translate3d(-2%, -2%, 0) scale(1.02); }
 }
-
-
-
-
 
 /* =========================================================
    Public Backgrounds (images override bg-layer)
@@ -774,6 +1339,74 @@ html[data-skin="night-pro"] {
 }
 
 /* =========================================================
+   NEW BACKGROUNDS (Added): Desert / Ocean / Peaceful / Winter
+   ========================================================= */
+
+/* Desert */
+html.light[data-skin="desert"] {
+  --bg-layer: url("/backgrounds/desert-day.webp");
+}
+
+html.dark[data-skin="desert"] {
+  --bg-layer: url("/backgrounds/desert-night.webp");
+}
+
+/* ✅ Auto-dark (no forced html.light/html.dark) */
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark)[data-skin="desert"] {
+    --bg-layer: url("/backgrounds/desert-night.webp");
+  }
+}
+
+/* Ocean */
+html.light[data-skin="ocean"] {
+  --bg-layer: url("/backgrounds/ocean-day.webp");
+}
+
+html.dark[data-skin="ocean"] {
+  --bg-layer: url("/backgrounds/ocean-night.webp");
+}
+
+/* ✅ Auto-dark (no forced html.light/html.dark) */
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark)[data-skin="ocean"] {
+    --bg-layer: url("/backgrounds/ocean-night.webp");
+  }
+}
+
+/* Peaceful */
+html.light[data-skin="peaceful"] {
+  --bg-layer: url("/backgrounds/peaceful-day.webp");
+}
+
+html.dark[data-skin="peaceful"] {
+  --bg-layer: url("/backgrounds/peaceful-night.webp");
+}
+
+/* ✅ Auto-dark (no forced html.light/html.dark) */
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark)[data-skin="peaceful"] {
+    --bg-layer: url("/backgrounds/peaceful-night.webp");
+  }
+}
+
+/* Winter */
+html.light[data-skin="winter"] {
+  --bg-layer: url("/backgrounds/winter-day.webp");
+}
+
+html.dark[data-skin="winter"] {
+  --bg-layer: url("/backgrounds/winter-night.webp");
+}
+
+/* ✅ Auto-dark (no forced html.light/html.dark) */
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark)[data-skin="winter"] {
+    --bg-layer: url("/backgrounds/winter-night.webp");
+  }
+}
+
+/* =========================================================
    Font system
    ========================================================= */
 
@@ -804,4 +1437,42 @@ body {
 
 .font-display {
   font-family: var(--font-display-stack);
+}
+
+
+/* =====================================================
+   Global "premium readability" (Pause polish)
+   ===================================================== */
+
+:root {
+  --read-shadow-dark: rgba(0, 0, 0, 0.16);
+  --read-shadow-glow: rgba(255, 255, 255, 0.18);
+}
+
+html.dark {
+  --read-shadow-dark: rgba(0, 0, 0, 0.26);
+  --read-shadow-glow: rgba(255, 255, 255, 0.10);
+}
+
+
+/* Global adaptive readability
+   (excludes hero/display titles like BreathingRoom)
+*/
+h1:not(.hero-title),
+h2:not(.hero-title),
+h3:not(.hero-title),
+p:not(.hero-title) {
+
+  /* roligere linjebrudd */
+  text-wrap: balance;
+
+  /* skarpere font rendering */
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+
+  /* subtil readability boost */
+  text-shadow:
+    0 0 1px var(--read-shadow-dark),
+    0 1px 2px rgba(0,0,0,0.10),
+    0 0 12px var(--read-shadow-glow);
 }

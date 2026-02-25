@@ -14,7 +14,7 @@ type AppPrefs = {
   proDemo: boolean;
   setProDemo: (v: boolean) => void;
 
-  // valgt skin (classic|floating|nature|nightpro)
+  // valgt skin (classic|floating|nature|nightpro|desert|ocean|peaceful|winter)
   skin: ThemeSkin;
   setSkin: (s: ThemeSkin) => void;
 
@@ -29,8 +29,33 @@ function getIsDarkNow(): boolean {
   return document.documentElement.classList.contains("dark");
 }
 
-function isThemeSkin(v: string | null): v is ThemeSkin {
-  return v === "classic" || v === "floating" || v === "nature" || v === "nightpro";
+/**
+ * Normaliserer localStorage-verdi for skin.
+ * Dette hindrer at små avvik (whitespace / casing / kebab-case) gjør at vi faller tilbake til classic.
+ * (Det er typisk årsaken til "flash riktig tema -> classic".)
+ */
+function normalizeThemeSkin(v: string | null): ThemeSkin | null {
+  if (!v) return null;
+
+  const s = v.trim().toLowerCase();
+
+  // støtt kebab-case/legacy
+  if (s === "night-pro") return "nightpro";
+
+  if (
+    s === "classic" ||
+    s === "floating" ||
+    s === "nature" ||
+    s === "nightpro" ||
+    s === "desert" ||
+    s === "ocean" ||
+    s === "peaceful" ||
+    s === "winter"
+  ) {
+    return s as ThemeSkin;
+  }
+
+  return null;
 }
 
 export default function AppProviders({ children }: { children: React.ReactNode }) {
@@ -47,7 +72,8 @@ export default function AppProviders({ children }: { children: React.ReactNode }
     _setProDemo(savedPro === "1");
 
     const savedSkinRaw = readLS(PREFS_KEYS.themeSkin);
-    const initial: ThemeSkin = isThemeSkin(savedSkinRaw) ? savedSkinRaw : "classic";
+    const normalized = normalizeThemeSkin(savedSkinRaw);
+    const initial: ThemeSkin = normalized ?? "classic";
 
     _setSkin(initial);
     applySkinToHtml(initial);
@@ -63,7 +89,7 @@ export default function AppProviders({ children }: { children: React.ReactNode }
       const nextDark = el.classList.contains("dark");
       setIsDark(nextDark);
 
-      // keep dataset in sync (nightpro -> night-pro mapping)
+      // keep dataset in sync
       applySkinToHtml(skin);
     });
 
