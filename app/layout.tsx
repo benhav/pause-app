@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-
 import { Inter, Fraunces } from "next/font/google";
 
 import "./globals.css";
-
 import AppProviders from "./AppProviders";
 
 const geistSans = Geist({
@@ -34,54 +32,95 @@ export const metadata: Metadata = {
   description: "Phase 1 prototype",
 };
 
-const THEME_KEY = "pause-theme"; // "light" | "dark" | (null => system)
-
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Setter riktig theme før UI tegnes (hindrer flash + hydration-krøll)
-  const THEME_KEY = "pause-theme";
+  const THEME_KEY = "pause-theme"; // "light" | "dark" | null (system)
   const SKIN_KEY = "pause-skin";
+  const PRO_KEY = "pause-pro-demo";
+
+  // BreathingRoom keys (separate fra app prefs)
+  const BR_MODE_KEY = "pause-br-mode"; // "follow" | "light" | "dark"
+  const BR_SKIN_KEY = "pause-br-skin"; // ThemeSkin (classic|floating|...|nightpro)
 
   const themeBootstrap = `
 (function () {
   try {
-    var saved = localStorage.getItem('${THEME_KEY}'); // "light" | "dark" | null
+    var THEME_KEY = '${THEME_KEY}';
+    var SKIN_KEY  = '${SKIN_KEY}';
+    var PRO_KEY   = '${PRO_KEY}';
+
+    var BR_MODE_KEY = '${BR_MODE_KEY}';
+    var BR_SKIN_KEY = '${BR_SKIN_KEY}';
+
+    var path = (location && location.pathname) ? location.pathname : '';
+    var isBR = path.indexOf('/breathingroom') === 0;
+
+    // ---- MODE (app -> system fallback) ----
+    var saved = localStorage.getItem(THEME_KEY); // "light"|"dark"|null
     var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     var mode = (saved === 'light' || saved === 'dark') ? saved : (prefersDark ? 'dark' : 'light');
+
+    // ---- BR MODE override (only on /breathingroom) ----
+    if (isBR) {
+      var brMode = localStorage.getItem(BR_MODE_KEY); // "follow"|"light"|"dark"|null
+      if (brMode === 'light' || brMode === 'dark') {
+        mode = brMode;
+        // treat as "manual" so we set explicit class
+        saved = brMode;
+      }
+      // "follow" => keep mode from app/system
+    }
 
     var root = document.documentElement;
     root.classList.remove('dark');
     root.classList.remove('light');
 
-    // Hvis bruker ikke har valgt manuelt: vi setter ingen class (så deres @media tar over)
-    // MEN: deres ThemeToggle forventer "light"/"dark" når man har valgt manuelt 
+    // If explicit manual choice (or BR forced): add light/dark class
     if (saved === 'light' || saved === 'dark') {
       root.classList.add(mode);
     } else {
-      // system: vi setter bare dark-class for å holde logikken konsistent med resten
+      // system: only add dark when dark (light = no class)
       if (mode === 'dark') root.classList.add('dark');
     }
 
-    // Skin
-    var skin = localStorage.getItem('${SKIN_KEY}');
-    if (
-      skin !== 'classic' &&
-      skin !== 'floating' &&
-      skin !== 'nature' &&
-      skin !== 'nightpro' &&
-      skin !== 'desert' &&
-      skin !== 'ocean' &&
-      skin !== 'peaceful' &&
-      skin !== 'winter'
-    ) skin = 'classic';
+    // ---- SKIN (app) ----
+    var valid = {
+      classic: 1,
+      floating: 1,
+      nature: 1,
+      nightpro: 1,
+      desert: 1,
+      ocean: 1,
+      peaceful: 1,
+      winter: 1
+    };
 
-    // CSS selector bruker kebab-case: html[data-skin="night-pro"]
+    var skin = (localStorage.getItem(SKIN_KEY) || '').trim().toLowerCase();
+    if (skin === 'night-pro') skin = 'nightpro';
+    if (!valid[skin]) skin = 'classic';
+
+    // ---- BR SKIN override (only on /breathingroom + pro) ----
+    if (isBR) {
+      var pro = localStorage.getItem(PRO_KEY) === '1';
+      if (pro) {
+        var brSkin = (localStorage.getItem(BR_SKIN_KEY) || '').trim().toLowerCase();
+        if (brSkin === 'night-pro') brSkin = 'nightpro';
+        if (valid[brSkin]) skin = brSkin;
+      }
+    }
+
+    // CSS uses kebab-case for night-pro
     if (skin === 'nightpro') skin = 'night-pro';
-
     root.dataset.skin = skin;
+
+    // ---- Theme-color meta (status/nav bar) ----
+    var meta = document.getElementById('theme-color-meta');
+    if (meta) {
+      meta.setAttribute('content', mode === 'dark' ? '#0e1117' : '#ffffff');
+    }
   } catch (e) {}
 })();`;
 
@@ -93,6 +132,10 @@ export default function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+
+        {/* Single meta that we mutate in bootstrap */}
+        <meta id="theme-color-meta" name="theme-color" content="#ffffff" />
+        <meta name="color-scheme" content="light dark" />
       </head>
 
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
