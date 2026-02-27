@@ -53,12 +53,12 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
     // localStorage (offline/klient)
     try {
       localStorage.setItem(LOCALE_KEY, next);
-    } catch {}
+    } catch { }
 
     // cookie (for SSR)
     try {
       document.cookie = `${LOCALE_KEY}=${next}; Path=/; Max-Age=31536000; SameSite=Lax`;
-    } catch {}
+    } catch { }
   }
 
   // Hvis vi kommer inn med ?lang=, bruk den
@@ -74,7 +74,7 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
       try {
         const saved = localStorage.getItem(LOCALE_KEY);
         if (saved === "en" || saved === "no") _setLocale(saved);
-      } catch {}
+      } catch { }
     };
 
     window.addEventListener("pageshow", sync);
@@ -102,17 +102,17 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
       if (savedLocale === "en" || savedLocale === "no") {
         _setLocale(savedLocale);
       }
-    } catch {}
+    } catch { }
   }, []);
 
   // 2) Sørg for at både localStorage + cookie følger locale når den endres
   useEffect(() => {
     try {
       localStorage.setItem(LOCALE_KEY, locale);
-    } catch {}
+    } catch { }
     try {
       document.cookie = `${LOCALE_KEY}=${locale}; Path=/; Max-Age=31536000; SameSite=Lax`;
-    } catch {}
+    } catch { }
   }, [locale]);
 
   // Load state on mount (with version + day guard)
@@ -190,7 +190,7 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
           try {
             localStorage.removeItem(STORAGE_KEY);
             localStorage.removeItem(LOCALE_KEY);
-          } catch {}
+          } catch { }
           setLocale("no");
           resetToStart();
         }}
@@ -469,16 +469,29 @@ export default function HomeClient({ initialLocale }: { initialLocale: Locale })
 
               {/* ✅ Tablet: ikke gigantisk dytte ned. Mobil: behold keyboard-padding */}
               <div className="mt-6 pb-40 sm:pb-0 md:mt-10">
+
                 <textarea
                   aria-label="Boundary"
                   className={[
                     "w-full rounded-xl p-3 md:p-4 text-base md:text-lg leading-6 outline-none",
-                    "border border-neutral-200 bg-[var(--app-bg)] text-neutral-900 placeholder-neutral-400",
-                    "focus:ring-2 focus:ring-neutral-200",
+                    "border",
 
-                    // Dark mode
-                    "dark:border-neutral-700 dark:bg-neutral-600 dark:text-neutral-50 dark:placeholder-neutral-500",
-                    "dark:focus:ring-neutral-600",
+                    // ✅ Base (light) – bruker tokens hvis de finnes, ellers “safe defaults”
+                    "bg-[color:var(--field-bg,rgba(255,255,255,0.72))]",
+                    "text-[color:var(--field-text,rgba(10,14,20,0.92))]",
+                    "placeholder:text-[color:var(--field-placeholder,rgba(10,14,20,0.55))]",
+                    "border-[color:var(--field-border,rgba(255,255,255,0.85))]",
+                    "caret-[color:var(--field-text,rgba(10,14,20,0.92))]",
+
+                    // ✅ Focus (nøytral, uten å stole på tailwind “neutral-200” som kan kræsje visuelt i noen skins)
+                    "focus:ring-2 focus:ring-[color:var(--field-border,rgba(255,255,255,0.85))]",
+
+                    // ✅ Dark mode fallback hvis tokens ikke finnes (men tokens vinner hvis du legger dem inn)
+                    "dark:bg-[color:var(--field-bg,rgba(0,0,0,0.42))]",
+                    "dark:text-[color:var(--field-text,rgba(255,255,255,0.92))]",
+                    "dark:placeholder:text-[color:var(--field-placeholder,rgba(255,255,255,0.55))]",
+                    "dark:border-[color:var(--field-border,rgba(255,255,255,0.55))]",
+                    "dark:focus:ring-[color:var(--field-border,rgba(255,255,255,0.55))]",
                   ].join(" ")}
                   rows={4}
                   placeholder={t.boundaryPlaceholder}

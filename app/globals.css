@@ -1065,6 +1065,29 @@ html.dark[data-skin="winter"], html.dark [data-skin="winter"] {
 }
 
 /* =========================================================
+   Text-field tokens (userprompt - optional text in field)
+   ========================================================= */
+
+:root {
+  /* ... */
+  --field-bg: rgba(255, 255, 255, 0.72);
+  --field-border: rgba(255, 255, 255, 0.85);
+  --field-text: rgba(10, 14, 20, 0.92);
+  --field-placeholder: rgba(10, 14, 20, 0.55);
+  --field-selection: rgba(0, 0, 0, 0.15);
+}
+
+html.dark {
+  --field-bg: rgba(0, 0, 0, 0.42);
+  --field-border: rgba(255, 255, 255, 0.55);
+  --field-text: rgba(255, 255, 255, 0.92);
+  --field-placeholder: rgba(255, 255, 255, 0.55);
+  --field-selection: rgba(255, 255, 255, 0.18);
+}
+
+
+
+/* =========================================================
    Range slider polish (BreathingRoom only)
    Premium glass track + halo thumb
    Scoped via .pause-range
