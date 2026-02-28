@@ -218,6 +218,29 @@ function isIntensity(v: string): v is HapticsIntensity {
   return v === "low" || v === "med" || v === "high";
 }
 
+// ✅ apply preset rules to an arbitrary prefs object (used for auto-apply)
+function applyPresetRules(p: BrPausePrefs): BrPausePrefs {
+  if (p.preset === "alwaysHideAll") {
+    return {
+      preset: "alwaysHideAll",
+      hideText: true,
+      hideMenuButtons: true,
+      hideSpeedBar: true,
+      hideVoiceToggle: true,
+    };
+  }
+  if (p.preset === "alwaysShowAll") {
+    return {
+      preset: "alwaysShowAll",
+      hideText: false,
+      hideMenuButtons: false,
+      hideSpeedBar: false,
+      hideVoiceToggle: false,
+    };
+  }
+  return p;
+}
+
 export default function BreathingRoomClient() {
   const router = useRouter();
 
@@ -377,10 +400,23 @@ export default function BreathingRoomClient() {
     }
   }, [mounted]);
 
-  // ✅ Read/persist pause prefs
+  // ✅ Read/persist pause prefs + auto-apply pause-mode immediately
   useEffect(() => {
     if (!mounted) return;
-    setBrPausePrefs(safeReadPausePrefs());
+
+    const p = safeReadPausePrefs();
+    setBrPausePrefs(p);
+
+    const applied = applyPresetRules(p);
+
+    const anyToHide =
+      applied.preset === "alwaysHideAll" ||
+      applied.hideText ||
+      applied.hideMenuButtons ||
+      applied.hideSpeedBar ||
+      applied.hideVoiceToggle;
+
+    setPauseMode(anyToHide);
   }, [mounted]);
 
   useEffect(() => {
@@ -447,12 +483,23 @@ export default function BreathingRoomClient() {
     }
   }, [mounted]);
 
-  // ✅ Listen for settings changes (instant apply)
+  // ✅ Listen for settings changes (instant apply + auto-pause when relevant)
   useEffect(() => {
     if (!mounted) return;
 
     const reload = () => {
-      setBrPausePrefs(safeReadPausePrefs());
+      const nextRaw = safeReadPausePrefs();
+      const next = applyPresetRules(nextRaw);
+      setBrPausePrefs(nextRaw);
+
+      const anyToHide =
+        next.preset === "alwaysHideAll" ||
+        next.hideText ||
+        next.hideMenuButtons ||
+        next.hideSpeedBar ||
+        next.hideVoiceToggle;
+
+      setPauseMode(anyToHide);
 
       try {
         const rawVG = localStorage.getItem(BR_VOICE_GENDER_KEY);
@@ -680,7 +727,7 @@ export default function BreathingRoomClient() {
     vibrate([12, 14, 18, 16, 26]);
   }, [vibrate]);
 
-  // ✅ Short hint when entering pause-mode (2s then gone)
+  // ✅ Short hint (2s then gone)
   const showHoldHintFor2s = useCallback(() => {
     setShowHoldHint(true);
     if (hintTimerRef.current) window.clearTimeout(hintTimerRef.current);
@@ -719,18 +766,17 @@ export default function BreathingRoomClient() {
     "transition",
   ].join(" ");
 
+  // ✅ Hint chip (single-line)
   const hintChip = [
     "inline-flex items-center justify-center",
     "rounded-full",
-    "border border-[color:var(--btn-border)]",
-    "bg-[var(--btn-bg)] text-[var(--muted)]",
-    "shadow-[var(--btn-shadow)]",
-    "px-4 py-2",
-    "text-[11px] sm:text-xs",
-    "leading-snug",
-    "max-w-[min(320px,calc(100vw-2.5rem))]",
-    "text-center",
-    "break-words",
+    "border border-white/35",
+    "px-5 py-2.5",
+    "text-xs md:text-sm",
+    "font-semibold",
+    "whitespace-nowrap",
+    "shadow-[0_18px_50px_rgba(0,0,0,0.35)]",
+    "backdrop-blur-2xl",
   ].join(" ");
 
   const circleCue =
@@ -738,8 +784,8 @@ export default function BreathingRoomClient() {
 
   const holdHintText =
     locale === "no"
-      ? "Hold i 2 sek for å vise/skjule"
-      : "Hold 2s to show/hide";
+      ? "Hold i 2 sek for å vise alt igjen"
+      : "Hold 2s to show everything again";
 
   const openBrTheme = () => {
     setBrThemeOpen(true);
@@ -801,49 +847,92 @@ export default function BreathingRoomClient() {
 
   // ✅ Apply preset rules (master)
   const effectivePausePrefs = useMemo<BrPausePrefs>(() => {
-    if (brPausePrefs.preset === "alwaysHideAll") {
-      return {
-        preset: "alwaysHideAll",
-        hideText: true,
-        hideMenuButtons: true,
-        hideSpeedBar: true,
-        hideVoiceToggle: true,
-      };
-    }
-    if (brPausePrefs.preset === "alwaysShowAll") {
-      return {
-        preset: "alwaysShowAll",
-        hideText: false,
-        hideMenuButtons: false,
-        hideSpeedBar: false,
-        hideVoiceToggle: false,
-      };
-    }
-    return brPausePrefs;
+    return applyPresetRules(brPausePrefs);
   }, [brPausePrefs]);
 
+  // ✅ Does user have explicit selection? (if not -> eye/hold hides ALL)
+  const hasExplicitPauseSelection = useMemo(() => {
+    if (effectivePausePrefs.preset !== "none") return true;
+    return (
+      effectivePausePrefs.hideText ||
+      effectivePausePrefs.hideMenuButtons ||
+      effectivePausePrefs.hideSpeedBar ||
+      effectivePausePrefs.hideVoiceToggle
+    );
+  }, [effectivePausePrefs]);
+
+  // ✅ If paused with NO selection -> hide everything
+  const hideAllWhenPaused = useMemo(() => {
+    return pauseMode && !hasExplicitPauseSelection;
+  }, [pauseMode, hasExplicitPauseSelection]);
+
   // ✅ What is visible while pauseMode is ON
-  const showText = useMemo(
-    () => !pauseMode || !effectivePausePrefs.hideText,
-    [pauseMode, effectivePausePrefs.hideText]
-  );
-  const showMenuButtons = useMemo(
-    () => !pauseMode || !effectivePausePrefs.hideMenuButtons,
-    [pauseMode, effectivePausePrefs.hideMenuButtons]
-  );
-  const showSpeedBar = useMemo(
-    () => !pauseMode || !effectivePausePrefs.hideSpeedBar,
-    [pauseMode, effectivePausePrefs.hideSpeedBar]
-  );
-  const showVoiceToggle = useMemo(
-    () => !pauseMode || !effectivePausePrefs.hideVoiceToggle,
-    [pauseMode, effectivePausePrefs.hideVoiceToggle]
-  );
+  const showText = useMemo(() => {
+    if (!pauseMode) return true;
+    if (hideAllWhenPaused) return false;
+    return !effectivePausePrefs.hideText;
+  }, [pauseMode, hideAllWhenPaused, effectivePausePrefs.hideText]);
+
+  const showMenuButtons = useMemo(() => {
+    if (!pauseMode) return true;
+    if (hideAllWhenPaused) return false;
+    return !effectivePausePrefs.hideMenuButtons;
+  }, [pauseMode, hideAllWhenPaused, effectivePausePrefs.hideMenuButtons]);
+
+  const showSpeedBar = useMemo(() => {
+    if (!pauseMode) return true;
+    if (hideAllWhenPaused) return false;
+    return !effectivePausePrefs.hideSpeedBar;
+  }, [pauseMode, hideAllWhenPaused, effectivePausePrefs.hideSpeedBar]);
+
+  const showVoiceToggle = useMemo(() => {
+    if (!pauseMode) return true;
+    if (hideAllWhenPaused) return false;
+    return !effectivePausePrefs.hideVoiceToggle;
+  }, [pauseMode, hideAllWhenPaused, effectivePausePrefs.hideVoiceToggle]);
+
+  // ✅ Back button visibility follows menu/buttons logic
+  const showBackButton = useMemo(() => {
+    if (!pauseMode) return true;
+    if (hideAllWhenPaused) return false;
+    return !effectivePausePrefs.hideMenuButtons;
+  }, [pauseMode, hideAllWhenPaused, effectivePausePrefs.hideMenuButtons]);
+
+  // ✅ Eye is only visible when SOMETHING else is visible
+  const anythingVisible = useMemo(() => {
+    return (
+      showText ||
+      showMenuButtons ||
+      showSpeedBar ||
+      showVoiceToggle ||
+      showBackButton
+    );
+  }, [showText, showMenuButtons, showSpeedBar, showVoiceToggle, showBackButton]);
+
+  const showEyeButton = anythingVisible;
+
+  // ✅ Hint ONLY when ALL is hidden (i.e. no eye + nothing else visible)
+  useEffect(() => {
+    if (!mounted) return;
+
+    const allHidden = pauseMode && !anythingVisible;
+
+    if (allHidden) {
+      showHoldHintFor2s();
+      return;
+    }
+
+    // otherwise: ensure hint is not shown
+    setShowHoldHint(false);
+    if (hintTimerRef.current) {
+      window.clearTimeout(hintTimerRef.current);
+      hintTimerRef.current = null;
+    }
+  }, [mounted, pauseMode, anythingVisible, showHoldHintFor2s]);
 
   const enterPauseMode = useCallback(() => {
     setPauseMode(true);
-    if (showText) showHoldHintFor2s();
-  }, [showHoldHintFor2s, showText]);
+  }, []);
 
   const exitPauseMode = useCallback(() => {
     setPauseMode(false);
@@ -989,88 +1078,90 @@ export default function BreathingRoomClient() {
           />
 
           {/* ✅ Eye toggle (pause-mode) */}
-          <button
-            type="button"
-            onClick={() => {
-              endHold();
+          {showEyeButton && (
+            <button
+              type="button"
+              onClick={() => {
+                endHold();
 
-              if (pauseMode) {
-                hapticWoshShow();
-                exitPauseMode();
-              } else {
-                hapticWoshHide();
-                enterPauseMode();
+                if (pauseMode) {
+                  hapticWoshShow();
+                  exitPauseMode();
+                } else {
+                  hapticWoshHide();
+                  enterPauseMode();
+                }
+              }}
+              aria-label={
+                pauseMode
+                  ? locale === "no"
+                    ? "Vis elementer"
+                    : "Show elements"
+                  : locale === "no"
+                  ? "Skjul elementer"
+                  : "Hide elements"
               }
-            }}
-            aria-label={
-              pauseMode
-                ? locale === "no"
-                  ? "Vis elementer"
-                  : "Show elements"
-                : locale === "no"
-                ? "Skjul elementer"
-                : "Hide elements"
-            }
-            className={[
-              "absolute left-5 top-5 md:left-6 md:top-6",
-              "h-10 w-10 md:h-11 md:w-11 rounded-full",
-              "backdrop-blur-2xl",
-              "ring-1 ring-white/18",
-              "flex items-center justify-center",
-              "transition-transform duration-150 ease-out",
-              "active:scale-[0.97]",
-            ].join(" ")}
-            style={{
-              zIndex: 3,
-              background:
-                "linear-gradient(180deg, rgba(255,255,255,0.16), rgba(0,0,0,0.18))",
-              boxShadow:
-                "0 10px 26px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.18)",
-            }}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-            }}
-          >
-            {pauseMode ? (
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="h-5 w-5 md:h-[22px] md:w-[22px]"
-                fill="none"
-              >
-                <path
-                  d="M4 12c2.2-3.5 5-5.25 8-5.25S17.8 8.5 20 12c-2.2 3.5-5 5.25-8 5.25S6.2 15.5 4 12Z"
-                  stroke="rgba(255,255,255,0.85)"
-                  strokeWidth="1.8"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M7 17.5 17 6.5"
-                  stroke="rgba(255,255,255,0.85)"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-              </svg>
-            ) : (
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="h-5 w-5 md:h-[22px] md:w-[22px]"
-                fill="none"
-              >
-                <path
-                  d="M4 12c2.2-3.5 5-5.25 8-5.25S17.8 8.5 20 12c-2.2 3.5-5 5.25-8 5.25S6.2 15.5 4 12Z"
-                  stroke="rgba(255,255,255,0.85)"
-                  strokeWidth="1.8"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M12 9.5c1.4 0 2.5 1.1 2.5 2.5S13.4 14.5 12 14.5 9.5 13.4 9.5 12 10.6 9.5 12 9.5Z"
-                  fill="rgba(255,255,255,0.70)"
-                />
-              </svg>
-            )}
-          </button>
+              className={[
+                "absolute left-5 top-5 md:left-6 md:top-6",
+                "h-10 w-10 md:h-11 md:w-11 rounded-full",
+                "backdrop-blur-2xl",
+                "ring-1 ring-white/18",
+                "flex items-center justify-center",
+                "transition-transform duration-150 ease-out",
+                "active:scale-[0.97]",
+              ].join(" ")}
+              style={{
+                zIndex: 3,
+                background:
+                  "linear-gradient(180deg, rgba(255,255,255,0.16), rgba(0,0,0,0.18))",
+                boxShadow:
+                  "0 10px 26px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.18)",
+              }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+              }}
+            >
+              {pauseMode ? (
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5 md:h-[22px] md:w-[22px]"
+                  fill="none"
+                >
+                  <path
+                    d="M4 12c2.2-3.5 5-5.25 8-5.25S17.8 8.5 20 12c-2.2 3.5-5 5.25-8 5.25S6.2 15.5 4 12Z"
+                    stroke="rgba(255,255,255,0.85)"
+                    strokeWidth="1.8"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M7 17.5 17 6.5"
+                    stroke="rgba(255,255,255,0.85)"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5 md:h-[22px] md:w-[22px]"
+                  fill="none"
+                >
+                  <path
+                    d="M4 12c2.2-3.5 5-5.25 8-5.25S17.8 8.5 20 12c-2.2 3.5-5 5.25-8 5.25S6.2 15.5 4 12Z"
+                    stroke="rgba(255,255,255,0.85)"
+                    strokeWidth="1.8"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M12 9.5c1.4 0 2.5 1.1 2.5 2.5S13.4 14.5 12 14.5 9.5 13.4 9.5 12 10.6 9.5 12 9.5Z"
+                    fill="rgba(255,255,255,0.70)"
+                  />
+                </svg>
+              )}
+            </button>
+          )}
 
           {/* ✅ Settings (hamburger) — controlled by pause prefs */}
           {showMenuButtons && (
@@ -1130,13 +1221,24 @@ export default function BreathingRoomClient() {
             </button>
           )}
 
-          {/* ✅ Short hint (2s) only when entering pause-mode */}
-          {showHoldHint && showText && (
+          {/* ✅ Short hint (2s) — ONLY when ALL is hidden */}
+          {showHoldHint && (
             <div
-              className="absolute left-1/2 top-[72px] -translate-x-1/2"
-              style={{ zIndex: 3 }}
+              className="absolute left-1/2 top-[76px] -translate-x-1/2"
+              style={{ zIndex: 9999 }}
             >
-              <div className={hintChip}>{holdHintText}</div>
+              <div
+                className={hintChip}
+                style={{
+                  color: "rgba(255,255,255,0.95)",
+                  background:
+                    "linear-gradient(180deg, rgba(0,0,0,0.62), rgba(0,0,0,0.34))",
+                  boxShadow:
+                    "0 24px 70px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.14)",
+                }}
+              >
+                {holdHintText}
+              </div>
             </div>
           )}
 
@@ -1156,9 +1258,7 @@ export default function BreathingRoomClient() {
                       </Title>
                     </div>
                     <div className="hidden md:block">
-                      <Title className="hero-title">
-                        {t.breathingRoomTitle}
-                      </Title>
+                      <Title className="hero-title">{t.breathingRoomTitle}</Title>
                     </div>
                   </div>
                 </div>
@@ -1255,7 +1355,7 @@ export default function BreathingRoomClient() {
 
             {/* BOTTOM */}
             <div className="flex flex-col items-center justify-start pt-6 md:pt-7">
-              {(showSpeedBar || showVoiceToggle || showMenuButtons) ? (
+              {showSpeedBar || showVoiceToggle || showMenuButtons ? (
                 <div className="w-full max-w-[360px] px-2 md:max-w-[520px] md:px-6">
                   {showSpeedBar && (
                     <>
@@ -1394,18 +1494,20 @@ export default function BreathingRoomClient() {
             </div>
           </div>
 
-          {/* Go back pinned bottom — ALWAYS visible (per tidligere design) */}
-          <div className="relative mt-6 md:mt-10" style={{ zIndex: 1 }}>
-            <button
-              type="button"
-              onClick={() => router.push(`/`)}
-              className={surfaceButton}
-              aria-label={t.goBack}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              {t.goBack}
-            </button>
-          </div>
+          {/* Go back pinned bottom */}
+          {showBackButton && (
+            <div className="relative mt-6 md:mt-10" style={{ zIndex: 1 }}>
+              <button
+                type="button"
+                onClick={() => router.push(`/`)}
+                className={surfaceButton}
+                aria-label={t.goBack}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                {t.goBack}
+              </button>
+            </div>
+          )}
 
           {/* BreathingRoom Theme Sheet */}
           {brThemeOpen && (
