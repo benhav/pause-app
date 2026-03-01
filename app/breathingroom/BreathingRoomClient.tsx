@@ -19,6 +19,8 @@ import Title from "../components/Title";
 import type { ThemeSkin } from "../lib/appPrefs";
 import { PREFS_KEYS } from "../lib/appPrefs";
 
+import { getHaptics } from "../lib/haptics";
+
 // ✅ Same key as HomeClient
 const LOCALE_KEY = "pause-locale";
 
@@ -259,7 +261,7 @@ export default function BreathingRoomClient() {
 
   const [voiceGender, setVoiceGender] = useState<VoiceGender>("female");
 
-  // ✅ Haptics master
+  // ✅ Haptics master (local state mirrors settings; engine reads localStorage too)
   const [hapticsEnabled, setHapticsEnabled] = useState(true);
   const [hapticsIntensity, setHapticsIntensity] =
     useState<HapticsIntensity>("med");
@@ -313,9 +315,6 @@ export default function BreathingRoomClient() {
   const [showHoldHint, setShowHoldHint] = useState(false);
   const hintTimerRef = useRef<number | null>(null);
 
-  // --- Slider haptic “steps” ---
-  const lastSliderHapticAtRef = useRef(0);
-
   const stopSoftBreath = useCallback(() => {
     if (scheduleTimerRef.current) {
       window.clearTimeout(scheduleTimerRef.current);
@@ -349,6 +348,37 @@ export default function BreathingRoomClient() {
   }, [seconds]);
 
   useEffect(() => setMounted(true), []);
+
+
+/**
+ * UX RULE:
+ * When breath-follow vibration is active,
+ * slider vibration must be disabled.
+ *
+ * Otherwise the two patterns collide and feel chaotic.
+ *
+ * Slider haptics is default ON when breath-follow is OFF.
+ */
+
+
+
+  // ✅ Attach haptics engine (UI haptics allowed by default; breathing haptics stays premium-gated)
+  useEffect(() => {
+    if (!mounted) return;
+
+    const h = getHaptics();
+    h.attach();
+
+    // Slider step feel (premium)
+    h.setSliderTickThrottle(85);
+
+    // Breathing haptics is premium/pro-demo gated (UI ticks/wosh are NOT)
+    h.setPremiumEnabledForBreath(isPro);
+
+    return () => {
+      h.detach();
+    };
+  }, [mounted, isPro]);
 
   function warmUpVoices() {
     const s = window.speechSynthesis;
@@ -680,52 +710,65 @@ export default function BreathingRoomClient() {
     };
   }, [stopSoftBreath]);
 
-  // ✅ HAPTICS helpers (BR only)
-  const intensityMultiplier = useMemo(() => {
-    if (hapticsIntensity === "low") return 0.65;
-    if (hapticsIntensity === "high") return 1.35;
-    return 1.0;
-  }, [hapticsIntensity]);
 
-  const scaleVibe = useCallback(
-    (n: number) => {
-      // scale pulse lengths, clamp sensible
-      const scaled = Math.round(n * intensityMultiplier);
-      return Math.max(6, Math.min(60, scaled));
-    },
-    [intensityMultiplier]
-  );
+/**
+ * Haptics Engine Sync
+ *
+ * BR is the single source of truth.
+ * Engines (voice + haptics) are independent and never know about each other.
+ *
+ * BR mediates:
+ * - slider timing
+ * - pro gating
+ * - voice active state
+ */
 
-  const canVibrate = useCallback(() => {
-    if (typeof window === "undefined") return false;
-    const nav = window.navigator as any;
-    return !!nav?.vibrate && hapticsEnabled && isPro;
-  }, [hapticsEnabled, isPro]);
 
-  const vibrate = useCallback(
-    (pattern: number | number[]) => {
-      if (!canVibrate()) return;
-      try {
-        const p = Array.isArray(pattern)
-          ? pattern.map((n, i) => (i % 2 === 0 ? scaleVibe(n) : n)) // scale pulses, keep pauses
-          : scaleVibe(pattern);
-        window.navigator.vibrate(p as any);
-      } catch {}
-    },
-    [canVibrate, scaleVibe]
-  );
 
-  const hapticTick = useCallback(() => {
-    vibrate(10);
-  }, [vibrate]);
+// ⭐ HAPTICS ENGINE SYNC (independent engine)
 
-  const hapticWoshHide = useCallback(() => {
-    vibrate([26, 16, 18, 14, 12]);
-  }, [vibrate]);
+useEffect(() => {
+  if (!mounted) return;
 
-  const hapticWoshShow = useCallback(() => {
-    vibrate([12, 14, 18, 16, 26]);
-  }, [vibrate]);
+  const h = getHaptics();
+
+  h.attach(); // safe singleton attach
+
+  return () => {
+    h.detach(); // cleanup when leaving BR
+  };
+}, [mounted]);
+
+// slider speed → haptics breathing math
+useEffect(() => {
+  if (!mounted) return;
+
+  const h = getHaptics();
+  h.setCycleSeconds(seconds);
+}, [mounted, seconds]);
+
+// voice toggle → optional voice sync mode
+useEffect(() => {
+  if (!mounted) return;
+
+  const h = getHaptics();
+  h.setVoiceActive(voiceEnabled);
+}, [mounted, voiceEnabled]);
+
+// Pro gating (premium breath haptics)
+useEffect(() => {
+  if (!mounted) return;
+
+  const h = getHaptics();
+  h.setPremiumEnabledForBreath(isPro);
+}, [mounted, isPro]);
+
+
+
+
+
+
+
 
   // ✅ Short hint (2s then gone)
   const showHoldHintFor2s = useCallback(() => {
@@ -784,8 +827,8 @@ export default function BreathingRoomClient() {
 
   const holdHintText =
     locale === "no"
-      ? "Hold i 2 sek for å vise alt igjen"
-      : "Hold 2s to show everything again";
+      ? "Trykk på skjermen i 2 sek for å vise alt igjen"
+      : "Press for 2s on the screen to show everything again";
 
   const openBrTheme = () => {
     setBrThemeOpen(true);
@@ -958,12 +1001,12 @@ export default function BreathingRoomClient() {
 
     const step = () => {
       holdSecondsRef.current += 1;
-      hapticTick();
+      getHaptics().tick();
       holdTickRef.current = window.setTimeout(step, 1000);
     };
 
     holdTickRef.current = window.setTimeout(step, 1000);
-  }, [hapticTick, stopHoldTicks]);
+  }, [stopHoldTicks]);
 
   // ✅ Press & hold handlers (2s)
   const endHold = useCallback(() => {
@@ -988,10 +1031,10 @@ export default function BreathingRoomClient() {
         holdFiredRef.current = true;
 
         if (pauseMode) {
-          hapticWoshShow();
+          getHaptics().woshShow();
           exitPauseMode();
         } else {
-          hapticWoshHide();
+          getHaptics().woshHide();
           enterPauseMode();
         }
 
@@ -999,15 +1042,7 @@ export default function BreathingRoomClient() {
         holdTimerRef.current = null;
       }, 2000);
     },
-    [
-      pauseMode,
-      enterPauseMode,
-      exitPauseMode,
-      startHoldTicks,
-      stopHoldTicks,
-      hapticWoshHide,
-      hapticWoshShow,
-    ]
+    [pauseMode, enterPauseMode, exitPauseMode, startHoldTicks, stopHoldTicks]
   );
 
   // ✅ IMPORTANT: early return AFTER all hooks
@@ -1085,10 +1120,10 @@ export default function BreathingRoomClient() {
                 endHold();
 
                 if (pauseMode) {
-                  hapticWoshShow();
+                  getHaptics().woshShow();
                   exitPauseMode();
                 } else {
-                  hapticWoshHide();
+                  getHaptics().woshHide();
                   enterPauseMode();
                 }
               }}
@@ -1367,11 +1402,8 @@ export default function BreathingRoomClient() {
                         onChange={(e) => {
                           const next = Number(e.target.value);
 
-                          const now = Date.now();
-                          if (now - lastSliderHapticAtRef.current > 45) {
-                            hapticTick();
-                            lastSliderHapticAtRef.current = now;
-                          }
+                          // ✅ Premium slider “steps” (engine throttles internally)
+                          getHaptics().sliderStepTick();
 
                           onSliderChange(next);
                         }}

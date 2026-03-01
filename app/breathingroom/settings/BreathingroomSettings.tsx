@@ -8,6 +8,8 @@ import { useAppPrefs } from "../../AppProviders";
 import type { Locale } from "../../data/uiText";
 import { UI_TEXT } from "../../data/uiText";
 
+import { getHaptics } from "../../lib/haptics";
+
 // Same keys as in BR client
 const LOCALE_KEY = "pause-locale";
 
@@ -53,7 +55,7 @@ function safeReadJson<T>(key: string, fallback: T): T {
 function safeWriteJson<T>(key: string, value: T) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
+  } catch { }
 }
 
 function safeReadStr(key: string, fallback: string) {
@@ -68,7 +70,7 @@ function safeReadStr(key: string, fallback: string) {
 function safeWriteStr(key: string, value: string) {
   try {
     localStorage.setItem(key, value);
-  } catch {}
+  } catch { }
 }
 
 function isIntensity(v: string): v is HapticsIntensity {
@@ -78,7 +80,7 @@ function isIntensity(v: string): v is HapticsIntensity {
 function announceSettingsChanged() {
   try {
     window.dispatchEvent(new Event("pause-br-settings-changed"));
-  } catch {}
+  } catch { }
 }
 
 function EyeIcon({
@@ -313,7 +315,7 @@ export default function BreathingroomSettings() {
     try {
       const saved = localStorage.getItem(LOCALE_KEY);
       if (saved === "en" || saved === "no") setLocale(saved as Locale);
-    } catch {}
+    } catch { }
   }, [mounted]);
 
   // Load initial values once
@@ -327,8 +329,8 @@ export default function BreathingroomSettings() {
     );
     const preset: PausePreset =
       p.preset === "alwaysHideAll" ||
-      p.preset === "alwaysShowAll" ||
-      p.preset === "none"
+        p.preset === "alwaysShowAll" ||
+        p.preset === "none"
         ? p.preset
         : "none";
 
@@ -434,11 +436,11 @@ export default function BreathingroomSettings() {
   const pauseDesc =
     pausePrefs.preset === "alwaysHideAll"
       ? locale === "no"
-        ? "I pusterom: hold i 2 sek for å vise igjen."
-        : "In Breathing Room: hold 2s to show again."
+        ? "I pusterom: hold en finger i 2 sek på skjermen for å vise elementene igjen."
+        : "In Breathing Room: Press and hold anywhere on the screen for 2s to show elements again."
       : locale === "no"
-      ? "Velg hva som skjules når du går inn i pause-modus (øyet)."
-      : "Choose what hides when you enter pause mode (the eye).";
+        ? "Velg hva som skjules når du går inn i pause-modus."
+        : "Choose what hides when you enter pause mode.";
 
   // ✅ persistVersion included so Save disables immediately after saving
   const isPauseDirty = useMemo(() => {
@@ -566,32 +568,32 @@ export default function BreathingroomSettings() {
         </div>
       )}
 
-{/* Top bar (Back positioned with more air + aligned) */}
-<div
-  className={[
-    "sticky top-0",
-    "backdrop-blur-xl",
-    "bg-[rgba(0,0,0,0.18)]",
-    "border-b border-[rgba(255,255,255,0.10)]",
-  ].join(" ")}
-  style={{
-    zIndex: 60,
-    minHeight: "calc(env(safe-area-inset-top) + 72px)",
-    boxShadow:
-      "0 18px 45px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.10)",
-  }}
->
-  <div
-    className={[
-      "max-w-2xl mx-auto",
-      "px-4 md:px-8",
-      "pb-5",
-    ].join(" ")}
-    style={{
-      paddingTop: "calc(env(safe-area-inset-top) + 24px)",
-    }}
-  >
-            
+      {/* Top bar (Back positioned with more air + aligned) */}
+      <div
+        className={[
+          "sticky top-0",
+          "backdrop-blur-xl",
+          "bg-[rgba(0,0,0,0.18)]",
+          "border-b border-[rgba(255,255,255,0.10)]",
+        ].join(" ")}
+        style={{
+          zIndex: 60,
+          minHeight: "calc(env(safe-area-inset-top) + 72px)",
+          boxShadow:
+            "0 18px 45px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.10)",
+        }}
+      >
+        <div
+          className={[
+            "max-w-2xl mx-auto",
+            "px-4 md:px-8",
+            "pb-5",
+          ].join(" ")}
+          style={{
+            paddingTop: "calc(env(safe-area-inset-top) + 24px)",
+          }}
+        >
+
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
@@ -818,8 +820,8 @@ export default function BreathingroomSettings() {
               </div>
               <div className={[sectionDesc, "mt-1"].join(" ")}>
                 {locale === "no"
-                  ? "Gir en liten bekreftelse ved hold-gesten og “trinn” på slideren."
-                  : "Adds confirmation on the hold gesture and “steps” on the slider."}
+                  ? "Vibrasjons assistent for pusterom."
+                  : "Vibration assist for Breathingroom."}
               </div>
             </div>
 
@@ -829,11 +831,11 @@ export default function BreathingroomSettings() {
               {/* Vibration on/off -> pills (NOT eye) */}
               <div
                 className={rowBase}
-                aria-label={locale === "no" ? "Vibrasjon av/på" : "Vibration on/off"}
+                aria-label={locale === "no" ? "Vibrasjon" : "Vibration"}
               >
                 <div className="flex-1 min-w-0 pr-2">
                   <div className={rowLabel}>
-                    {locale === "no" ? "Vibrasjon av/på" : "Vibration on/off"}
+                    {locale === "no" ? "Vibrasjon" : "Vibration"}
                   </div>
                 </div>
 
@@ -850,6 +852,7 @@ export default function BreathingroomSettings() {
                   >
                     {locale === "no" ? "Av" : "Off"}
                   </button>
+
                   <button
                     type="button"
                     className={[
@@ -858,7 +861,13 @@ export default function BreathingroomSettings() {
                       hapticsEnabled ? pillOn : "",
                     ].join(" ")}
                     style={pillStyle(hapticsEnabled)}
-                    onClick={() => setHapticsEnabled(true)}
+                    onClick={() => {
+                      setHapticsEnabled(true);
+
+                      try {
+                        getHaptics().confirmEnabled();
+                      } catch { }
+                    }}
                   >
                     {locale === "no" ? "På" : "On"}
                   </button>
@@ -873,11 +882,12 @@ export default function BreathingroomSettings() {
                   <div className={rowLabel}>
                     {locale === "no" ? "Intensitet" : "Intensity"}
                   </div>
+
                   {!hapticsEnabled && (
                     <div className={rowSub}>
                       {locale === "no"
-                        ? "Slå på vibrasjon for å endre intensitet."
-                        : "Enable vibration to change intensity."}
+                        ? "Vibrasjon påkrevd."
+                        : "Vibration required."}
                     </div>
                   )}
                 </div>
@@ -891,6 +901,7 @@ export default function BreathingroomSettings() {
                     ] as Array<[HapticsIntensity, string]>
                   ).map(([val, label]) => {
                     const active = hapticsIntensity === val;
+
                     return (
                       <button
                         key={val}
@@ -905,7 +916,26 @@ export default function BreathingroomSettings() {
                         style={pillStyle(active)}
                         onClick={() => {
                           if (!hapticsEnabled) return;
+
+                          // update UI state
                           setHapticsIntensity(val);
+
+                          // keep BR + engine synced instantly
+                          try {
+                            localStorage.setItem(
+                              "pause-br-haptics-intensity",
+                              val
+                            );
+                          } catch { }
+
+                          window.dispatchEvent(
+                            new Event("pause-br-settings-changed")
+                          );
+
+                          // ⭐ REAL FEEDBACK PREVIEW (~2s)
+                          try {
+                            getHaptics().previewIntensity(val);
+                          } catch { }
                         }}
                       >
                         {label}
@@ -914,6 +944,7 @@ export default function BreathingroomSettings() {
                   })}
                 </div>
               </div>
+
 
               <div className={divider} />
 
@@ -925,8 +956,8 @@ export default function BreathingroomSettings() {
                 <div className="flex-1 min-w-0 pr-2">
                   <div className={rowLabel}>
                     {locale === "no"
-                      ? "Pustevibrasjon (synk med sirkel)"
-                      : "Breath haptics (sync with circle)"}
+                      ? "Pustevibrasjon"
+                      : "Breath haptics"}
                   </div>
                   <div className={rowSub}>
                     {!isPro
@@ -934,12 +965,12 @@ export default function BreathingroomSettings() {
                         ? "Pustevibrasjon er en Pro-funksjon."
                         : "Breath haptics is a Pro feature."
                       : !hapticsEnabled
-                      ? locale === "no"
-                        ? "Slå på vibrasjon for å bruke pustevibrasjon."
-                        : "Enable vibration to use breath haptics."
-                      : locale === "no"
-                      ? "Kommer i neste steg: vibrasjonsmønster for inn/hold/ut."
-                      : "Next step: vibration pattern for in/hold/out."}
+                        ? locale === "no"
+                          ? "Vibrasjon påkrevd."
+                          : "Vibration required."
+                        : locale === "no"
+                          ? "Pust i vibrasjonsmønsteret."
+                          : "Breathe to the vibration."}
                   </div>
                 </div>
 
@@ -973,7 +1004,13 @@ export default function BreathingroomSettings() {
                     style={pillStyle(breathHapticsEnabled)}
                     onClick={() => {
                       if (!canUseBreathHaptics) return;
+
                       setBreathHapticsEnabled(true);
+
+                      // ✅ small haptic confirmation when enabling breath-follow
+                      try {
+                        getHaptics().confirmBreathEnabled();
+                      } catch { }
                     }}
                   >
                     {locale === "no" ? "På" : "On"}
