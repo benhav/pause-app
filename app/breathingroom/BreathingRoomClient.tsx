@@ -36,6 +36,12 @@ const BR_HAPTICS_KEY = "pause-br-haptics"; // "1" | "0"
 const BR_HAPTICS_INTENSITY_KEY = "pause-br-haptics-intensity"; // "low" | "med" | "high"
 const BR_BREATH_HAPTICS_KEY = "pause-br-breath-haptics"; // "1" | "0" (pro)
 
+// ✅ Breath mode (new)
+const BR_BREATH_MODE_KEY = "pause-br-breath-mode"; // "standard" | "release" | "deep-calm" | "stillness"
+
+// ✅ Visual pulse toggle (new)
+const BR_VISUAL_PULSE_KEY = "pause-br-visual-pulse"; // "1" | "0"
+
 // Slider: TOPP = raskest, BUNN = tregest
 const MIN_SECONDS = 6; // raskest
 const MAX_SECONDS = 16; // tregest
@@ -47,6 +53,8 @@ type BrMode = "follow" | "light" | "dark";
 type PausePreset = "none" | "alwaysHideAll" | "alwaysShowAll";
 type VoiceGender = "female" | "male";
 type HapticsIntensity = "low" | "med" | "high";
+
+type BreathMode = "standard" | "release" | "deep-calm" | "stillness";
 
 type BrPausePrefs = {
   preset: PausePreset;
@@ -136,53 +144,18 @@ function speak(text: string, locale: Locale) {
       const raw = localStorage.getItem(BR_VOICE_GENDER_KEY);
       const g = (raw || "").trim().toLowerCase();
       if (g === "male" || g === "female") gender = g;
-    } catch {}
+    } catch { }
 
     u.rate = 0.88;
     u.pitch = gender === "male" ? 0.84 : 0.98;
     u.volume = 0.85;
 
     synth.speak(u);
-  } catch {}
-}
-
-function isThemeSkin(v: string): v is ThemeSkin {
-  return (
-    v === "classic" ||
-    v === "floating" ||
-    v === "nature" ||
-    v === "nightpro" ||
-    v === "desert" ||
-    v === "ocean" ||
-    v === "peaceful" ||
-    v === "winter"
-  );
+  } catch { }
 }
 
 function isBrMode(v: string): v is BrMode {
   return v === "follow" || v === "light" || v === "dark";
-}
-
-function brThemeLabel(locale: Locale, skin: ThemeSkin) {
-  const isNo = locale === "no";
-  switch (skin) {
-    case "classic":
-      return isNo ? "Classic" : "Classic";
-    case "floating":
-      return isNo ? "Bølger" : "Waves";
-    case "nature":
-      return isNo ? "Natur" : "Nature";
-    case "nightpro":
-      return isNo ? "Rolig natt" : "Silent night";
-    case "desert":
-      return isNo ? "Stille sanddyner" : "Quiet dunes";
-    case "ocean":
-      return isNo ? "Rolig hav" : "Gentle ocean";
-    case "peaceful":
-      return isNo ? "Stille morgen" : "Morning meadow";
-    case "winter":
-      return isNo ? "Vinter skog" : "Winter silence";
-  }
 }
 
 function safeReadPausePrefs(): BrPausePrefs {
@@ -193,8 +166,8 @@ function safeReadPausePrefs(): BrPausePrefs {
     const parsed = JSON.parse(raw) as Partial<BrPausePrefs>;
     const preset =
       parsed.preset === "alwaysHideAll" ||
-      parsed.preset === "alwaysShowAll" ||
-      parsed.preset === "none"
+        parsed.preset === "alwaysShowAll" ||
+        parsed.preset === "none"
         ? parsed.preset
         : "none";
 
@@ -213,11 +186,20 @@ function safeReadPausePrefs(): BrPausePrefs {
 function safeWritePausePrefs(p: BrPausePrefs) {
   try {
     localStorage.setItem(BR_PAUSE_PREFS_KEY, JSON.stringify(p));
-  } catch {}
+  } catch { }
 }
 
 function isIntensity(v: string): v is HapticsIntensity {
   return v === "low" || v === "med" || v === "high";
+}
+
+function isBreathMode(v: string): v is BreathMode {
+  return (
+    v === "standard" ||
+    v === "release" ||
+    v === "deep-calm" ||
+    v === "stillness"
+  );
 }
 
 // ✅ apply preset rules to an arbitrary prefs object (used for auto-apply)
@@ -243,13 +225,53 @@ function applyPresetRules(p: BrPausePrefs): BrPausePrefs {
   return p;
 }
 
+function readBreathMode(): BreathMode {
+  try {
+    const raw = (localStorage.getItem(BR_BREATH_MODE_KEY) || "standard")
+      .trim()
+      .toLowerCase();
+    return isBreathMode(raw) ? raw : "standard";
+  } catch {
+    return "standard";
+  }
+}
+
+function readVisualPulseEnabled(): boolean {
+  try {
+    const raw = localStorage.getItem(BR_VISUAL_PULSE_KEY);
+    if (raw === "0") return false;
+    if (raw === "1") return true;
+    return true; // default ON
+  } catch {
+    return true;
+  }
+}
+
+function breathModeLabel(locale: Locale, mode: BreathMode) {
+  const isNo = locale === "no";
+  switch (mode) {
+    case "standard":
+      return isNo ? "Standard" : "Standard";
+    case "release":
+      return isNo ? "Slipp" : "Release";
+    case "deep-calm":
+      return isNo ? "Dyp ro" : "Deep calm";
+    case "stillness":
+      return isNo ? "Stillhet" : "Stillness";
+  }
+}
+
 export default function BreathingRoomClient() {
   const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
   const [locale, setLocale] = useState<Locale>("no");
 
+  // Standard slider (holy)
   const [seconds, setSeconds] = useState<number>(DEFAULT_SECONDS);
+
+  // ✅ Breath mode (new)
+  const [breathMode, setBreathMode] = useState<BreathMode>("standard");
 
   // ✅ Pause-mode (Eye toggle)
   const [pauseMode, setPauseMode] = useState(false);
@@ -266,6 +288,9 @@ export default function BreathingRoomClient() {
   const [hapticsIntensity, setHapticsIntensity] =
     useState<HapticsIntensity>("med");
   const [breathHapticsEnabled, setBreathHapticsEnabled] = useState(false);
+
+  // ✅ Visual pulse enabled (local)
+  const [visualPulseEnabled, setVisualPulseEnabled] = useState(true);
 
   const {
     proDemo: isPro,
@@ -288,6 +313,13 @@ export default function BreathingRoomClient() {
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [animNonce, setAnimNonce] = useState(0);
   const timersRef = useRef<number[]>([]);
+
+  // ✅ Lightpulse (visual heartbeat flashes)
+  const [pulseNonce, setPulseNonce] = useState(0);
+  const triggerPulse = useCallback(() => {
+    if (!visualPulseEnabled) return;
+    setPulseNonce((n) => n + 1);
+  }, [visualPulseEnabled]);
 
   // --- SoftBreath (WebAudio) ---
   const breathRef = useRef<SoftBreath | null>(null);
@@ -315,64 +347,19 @@ export default function BreathingRoomClient() {
   const [showHoldHint, setShowHoldHint] = useState(false);
   const hintTimerRef = useRef<number | null>(null);
 
-  const stopSoftBreath = useCallback(() => {
-    if (scheduleTimerRef.current) {
-      window.clearTimeout(scheduleTimerRef.current);
-      scheduleTimerRef.current = null;
-    }
-  }, []);
-
-  const scheduleSoftBreath = useCallback(() => {
-    const eng = breathRef.current;
-    if (!eng) return;
-
-    const inhale = seconds * 0.28;
-    const hold = seconds * 0.12;
-    const exhale = seconds * 0.32;
-
-    const now = eng.now();
-    const start = now + 0.06;
-
-    eng.chime(start, 528, 0.09);
-    eng.breath(start, inhale, "in");
-
-    eng.chime(start + inhale, 432, 0.07);
-
-    eng.breath(start + inhale + hold, exhale, "out");
-    eng.chime(start + inhale + hold + exhale, 396, 0.07);
-
-    const nextInMs = Math.max(250, (seconds - 0.15) * 1000);
-    scheduleTimerRef.current = window.setTimeout(() => {
-      scheduleSoftBreath();
-    }, nextInMs);
-  }, [seconds]);
-
   useEffect(() => setMounted(true), []);
 
-
-/**
- * UX RULE:
- * When breath-follow vibration is active,
- * slider vibration must be disabled.
- *
- * Otherwise the two patterns collide and feel chaotic.
- *
- * Slider haptics is default ON when breath-follow is OFF.
- */
-
-
-
-  // ✅ Attach haptics engine (UI haptics allowed by default; breathing haptics stays premium-gated)
+  // ✅ Attach haptics engine ONCE (and keep it stable)
   useEffect(() => {
     if (!mounted) return;
 
     const h = getHaptics();
     h.attach();
 
-    // Slider step feel (premium)
+    // Slider step feel
     h.setSliderTickThrottle(85);
 
-    // Breathing haptics is premium/pro-demo gated (UI ticks/wosh are NOT)
+    // Pro gating for breath-follow scheduling
     h.setPremiumEnabledForBreath(isPro);
 
     return () => {
@@ -407,7 +394,7 @@ export default function BreathingRoomClient() {
     try {
       const saved = localStorage.getItem(LOCALE_KEY);
       if (saved === "en" || saved === "no") setLocale(saved as Locale);
-    } catch {}
+    } catch { }
   }, [mounted]);
 
   // ✅ Read breathingroom day/night override (local only)
@@ -428,6 +415,18 @@ export default function BreathingRoomClient() {
     } catch {
       setBrMode("follow");
     }
+  }, [mounted]);
+
+  // ✅ Read breath mode (local)
+  useEffect(() => {
+    if (!mounted) return;
+    setBreathMode(readBreathMode());
+  }, [mounted]);
+
+  // ✅ Read visual pulse enabled (local)
+  useEffect(() => {
+    if (!mounted) return;
+    setVisualPulseEnabled(readVisualPulseEnabled());
   }, [mounted]);
 
   // ✅ Read/persist pause prefs + auto-apply pause-mode immediately
@@ -461,7 +460,7 @@ export default function BreathingRoomClient() {
       const raw = localStorage.getItem(BR_VOICE_GENDER_KEY);
       const v = (raw || "").trim().toLowerCase();
       if (v === "male" || v === "female") setVoiceGender(v);
-    } catch {}
+    } catch { }
   }, [mounted]);
 
   // ✅ Persist voice gender (local)
@@ -469,7 +468,7 @@ export default function BreathingRoomClient() {
     if (!mounted) return;
     try {
       localStorage.setItem(BR_VOICE_GENDER_KEY, voiceGender);
-    } catch {}
+    } catch { }
   }, [mounted, voiceGender]);
 
   // ✅ Read haptics enabled (local)
@@ -490,7 +489,7 @@ export default function BreathingRoomClient() {
     if (!mounted) return;
     try {
       localStorage.setItem(BR_HAPTICS_KEY, hapticsEnabled ? "1" : "0");
-    } catch {}
+    } catch { }
   }, [mounted, hapticsEnabled]);
 
   // ✅ Read haptics intensity + breath haptics (local)
@@ -535,12 +534,12 @@ export default function BreathingRoomClient() {
         const rawVG = localStorage.getItem(BR_VOICE_GENDER_KEY);
         const vg = (rawVG || "").trim().toLowerCase();
         if (vg === "male" || vg === "female") setVoiceGender(vg);
-      } catch {}
+      } catch { }
 
       try {
         const rawH = localStorage.getItem(BR_HAPTICS_KEY);
         setHapticsEnabled(rawH !== "0");
-      } catch {}
+      } catch { }
 
       try {
         const rawI = (localStorage.getItem(BR_HAPTICS_INTENSITY_KEY) || "med")
@@ -557,33 +556,32 @@ export default function BreathingRoomClient() {
       } catch {
         setBreathHapticsEnabled(false);
       }
+
+      // Breath mode
+      setBreathMode(readBreathMode());
+
+      // Visual pulse toggle
+      setVisualPulseEnabled(readVisualPulseEnabled());
     };
 
     window.addEventListener("pause-br-settings-changed", reload);
     return () => window.removeEventListener("pause-br-settings-changed", reload);
   }, [mounted]);
 
-  const t = useMemo(() => UI_TEXT[locale], [locale]);
-
-  const sliderValue = useMemo(
-    () => MAX_SECONDS + MIN_SECONDS - seconds,
-    [seconds]
-  );
-
-  const onSliderChange = (v: number) => {
-    const inverted = MAX_SECONDS + MIN_SECONDS - v;
-    setSeconds(inverted);
-  };
-
+  // ------------------------------------------------------------
+  // ❤️ Heartbeat → pulse overlay sync (single listener)
+  // ------------------------------------------------------------
   useEffect(() => {
-    setAnimNonce((n) => n + 1);
-  }, [seconds]);
+    if (!mounted) return;
+    if (!visualPulseEnabled) return;
 
-  const circleStyle: CSSProperties = useMemo(() => {
-    return {
-      animation: `breatheHold ${seconds}s ease-in-out infinite`,
-    };
-  }, [seconds]);
+    const onBeat = () => triggerPulse();
+
+    window.addEventListener("pause-br-heartbeat", onBeat);
+    return () => window.removeEventListener("pause-br-heartbeat", onBeat);
+  }, [mounted, visualPulseEnabled, triggerPulse]);
+
+  const t = useMemo(() => UI_TEXT[locale], [locale]);
 
   // ✅ Effective day/night for BR:
   const effectiveBrIsDark = useMemo(() => {
@@ -632,7 +630,267 @@ export default function BreathingRoomClient() {
     };
   }, [mounted, brMode, setMode]);
 
-  // --- Voice schedule (unchanged) ---
+  // ------------------------------------------------------------
+  // ✅ PHASE DURATIONS (single source of truth)
+  // ------------------------------------------------------------
+
+  const phase = useMemo(() => {
+    // Standard = holy and untouched: keep old ratios based on slider seconds
+    if (breathMode === "standard") {
+      const inhaleMs = Math.round(seconds * 0.28 * 1000);
+      const holdTopMs = Math.round(seconds * 0.12 * 1000);
+      const exhaleMs = Math.round(seconds * 0.32 * 1000);
+      const cycleMs = Math.round(seconds * 1000);
+      const holdBottomMs = Math.max(0, cycleMs - inhaleMs - holdTopMs - exhaleMs);
+
+      return {
+        inhaleMs,
+        holdTopMs,
+        exhaleMs,
+        holdBottomMs,
+        totalMs: cycleMs,
+        hasHoldTop: holdTopMs > 0,
+      };
+    }
+
+    if (breathMode === "release") {
+      // 6 / 0 / 8 / 4
+      const inhaleMs = 6000;
+      const holdTopMs = 0;
+      const exhaleMs = 8000;
+      const holdBottomMs = 4000;
+      return {
+        inhaleMs,
+        holdTopMs,
+        exhaleMs,
+        holdBottomMs,
+        totalMs: inhaleMs + exhaleMs + holdBottomMs,
+        hasHoldTop: false,
+      };
+    }
+
+    if (breathMode === "deep-calm") {
+      // 8 / 0 / 14 / 6
+      const inhaleMs = 8000;
+      const holdTopMs = 0;
+      const exhaleMs = 14000;
+      const holdBottomMs = 6000;
+      return {
+        inhaleMs,
+        holdTopMs,
+        exhaleMs,
+        holdBottomMs,
+        totalMs: inhaleMs + exhaleMs + holdBottomMs,
+        hasHoldTop: false,
+      };
+    }
+
+    // stillness: 10 / 0 / 20 / 7–10 subtle variation
+    const inhaleMs = 10000;
+    const holdTopMs = 0;
+    const exhaleMs = 20000;
+    const holdBottomMs = { minMs: 7000, maxMs: 10000 };
+    return {
+      inhaleMs,
+      holdTopMs,
+      exhaleMs,
+      holdBottomMs,
+      totalMs: inhaleMs + exhaleMs + 8500,
+      hasHoldTop: false,
+    };
+  }, [breathMode, seconds]);
+
+  // ------------------------------------------------------------
+  // ✅ HAPTICS ENGINE SYNC
+  // ------------------------------------------------------------
+
+  // slider speed → standard haptics math (only in standard)
+  useEffect(() => {
+    if (!mounted) return;
+    const h = getHaptics();
+
+    if (breathMode === "standard") {
+      h.setCycleSeconds(seconds);
+      return;
+    }
+
+    // explicit phase durations for pro modes
+    h.setPhaseDurations({
+      inhaleMs: phase.inhaleMs,
+      holdTopMs: phase.holdTopMs,
+      exhaleMs: phase.exhaleMs,
+      holdBottomMs: phase.holdBottomMs as any,
+    });
+  }, [mounted, breathMode, seconds, phase]);
+
+  // voice toggle → optional voice sync mode
+  useEffect(() => {
+    if (!mounted) return;
+    const h = getHaptics();
+    h.setVoiceActive(voiceEnabled);
+  }, [mounted, voiceEnabled]);
+
+  // Pro gating (premium breath haptics)
+  useEffect(() => {
+    if (!mounted) return;
+    const h = getHaptics();
+    h.setPremiumEnabledForBreath(isPro);
+  }, [mounted, isPro]);
+
+  // ------------------------------------------------------------
+  // ✅ ANIMATION KEYFRAMES (phase-locked)
+  // ------------------------------------------------------------
+
+  // For stillness range: sample one cycle length for visuals (the haptics engine varies holdBottom per cycle anyway)
+  const sampledHoldBottomMsForVisual = useMemo(() => {
+    if (breathMode !== "stillness") return 0;
+
+    const minMs = 7000;
+    const maxMs = 10000;
+    const span = maxMs - minMs;
+
+    // subtle sample (stable-ish)
+    const r = 0.45 + Math.random() * 0.10; // 0.45–0.55
+    return minMs + Math.round(span * r);
+  }, [breathMode, animNonce]);
+
+  const visualHoldBottomMs = useMemo(() => {
+    if (breathMode !== "stillness")
+      return typeof phase.holdBottomMs === "number" ? phase.holdBottomMs : 0;
+    return sampledHoldBottomMsForVisual;
+  }, [breathMode, phase.holdBottomMs, sampledHoldBottomMsForVisual]);
+
+  const totalVisualMs = useMemo(() => {
+    const hb = visualHoldBottomMs ?? 0;
+    return phase.inhaleMs + phase.holdTopMs + phase.exhaleMs + hb;
+  }, [phase.inhaleMs, phase.holdTopMs, phase.exhaleMs, visualHoldBottomMs]);
+
+  const keyframesName = useMemo(() => {
+    return `brBreathe_${animNonce}_${breathMode}`;
+  }, [animNonce, breathMode]);
+
+  const keyframesCss = useMemo(() => {
+    const inhaleEnd = (phase.inhaleMs / totalVisualMs) * 100;
+    const holdTopEnd = ((phase.inhaleMs + phase.holdTopMs) / totalVisualMs) * 100;
+    const exhaleEnd =
+      ((phase.inhaleMs + phase.holdTopMs + phase.exhaleMs) / totalVisualMs) * 100;
+
+    // Breathing pulse circle (keeps your old feel)
+    const maxScale = 1.2;
+    const minScale = 0.8;
+
+    return `
+@keyframes ${keyframesName} {
+  0%   { transform: scale(${minScale}); }
+  ${inhaleEnd.toFixed(3)}% { transform: scale(${maxScale}); }
+  ${holdTopEnd.toFixed(3)}% { transform: scale(${maxScale}); }
+  ${exhaleEnd.toFixed(3)}% { transform: scale(${minScale}); }
+  100% { transform: scale(${minScale}); }
+}
+
+/* pulse flash (opacity only — no color changes) */
+@keyframes ${keyframesName}_flash {
+  0%   { opacity: 0; transform: scale(1); }
+  18%  { opacity: 0.26; transform: scale(1.01); }
+  55%  { opacity: 0.10; transform: scale(1.005); }
+  100% { opacity: 0; transform: scale(1); }
+}
+`;
+  }, [keyframesName, phase.inhaleMs, phase.holdTopMs, phase.exhaleMs, totalVisualMs]);
+
+  const circleStyle: CSSProperties = useMemo(() => {
+    return {
+      animation: `${keyframesName} ${Math.max(0.4, totalVisualMs / 1000)}s ease-in-out infinite`,
+    };
+  }, [keyframesName, totalVisualMs]);
+
+  // ------------------------------------------------------------
+  // ✅ PULSE LOGIC
+  // - TOP: "dum–dum" (2 pulses) during holdTop (only when holdTop exists)
+  // - BOTTOM: exact sync with haptics heart beats via window event "pause-br-heartbeat"
+  // ------------------------------------------------------------
+
+  // TOP: schedule 2 pulses per cycle in holdTop when available
+  useEffect(() => {
+    if (!mounted) return;
+    if (!visualPulseEnabled) return;
+
+    if (!phase.hasHoldTop || phase.holdTopMs < 200) return;
+
+    let alive = true;
+    let t1: number | null = null;
+    let t2: number | null = null;
+    let loop: number | null = null;
+
+    const run = () => {
+      if (!alive) return;
+
+      const base = phase.inhaleMs; // holdTop starts when inhale ends
+
+      // tight "dum–dum"
+      t1 = window.setTimeout(() => alive && triggerPulse(), base + 60);
+      t2 = window.setTimeout(() => alive && triggerPulse(), base + 60 + 220);
+
+      loop = window.setTimeout(run, totalVisualMs);
+    };
+
+    run();
+
+    return () => {
+      alive = false;
+      if (t1) window.clearTimeout(t1);
+      if (t2) window.clearTimeout(t2);
+      if (loop) window.clearTimeout(loop);
+    };
+  }, [
+    mounted,
+    visualPulseEnabled,
+    phase.inhaleMs,
+    phase.holdTopMs,
+    phase.hasHoldTop,
+    totalVisualMs,
+    triggerPulse,
+  ]);
+
+  // ------------------------------------------------------------
+  // Voice + SoftBreath schedule (phase-locked)
+  // ------------------------------------------------------------
+
+  const stopSoftBreath = useCallback(() => {
+    if (scheduleTimerRef.current) {
+      window.clearTimeout(scheduleTimerRef.current);
+      scheduleTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleSoftBreath = useCallback(() => {
+    const eng = breathRef.current;
+    if (!eng) return;
+
+    const inhale = phase.inhaleMs / 1000;
+    const holdTop = phase.holdTopMs / 1000;
+    const exhale = phase.exhaleMs / 1000;
+
+    const now = eng.now();
+    const start = now + 0.06;
+
+    eng.chime(start, 528, 0.09);
+    eng.breath(start, inhale, "in");
+
+    if (holdTop > 0.02) {
+      eng.chime(start + inhale, 432, 0.07);
+    }
+
+    eng.breath(start + inhale + holdTop, exhale, "out");
+    eng.chime(start + inhale + holdTop + exhale, 396, 0.07);
+
+    const nextInMs = Math.max(250, totalVisualMs - 150);
+    scheduleTimerRef.current = window.setTimeout(() => {
+      scheduleSoftBreath();
+    }, nextInMs);
+  }, [phase.inhaleMs, phase.holdTopMs, phase.exhaleMs, totalVisualMs]);
+
+  // Voice schedule
   useEffect(() => {
     timersRef.current.forEach((id) => window.clearTimeout(id));
     timersRef.current = [];
@@ -642,32 +900,34 @@ export default function BreathingRoomClient() {
     if (!isPro || !voiceEnabled) {
       try {
         window.speechSynthesis?.cancel();
-      } catch {}
+      } catch { }
       return;
     }
 
-    const inhale = Math.round(seconds * 0.28 * 1000);
-    const hold = Math.round(seconds * 0.12 * 1000);
-    const cycle = Math.round(seconds * 1000);
+    const inhaleMs = phase.inhaleMs;
+    const holdTopMs = phase.holdTopMs;
+    const cycleMs = totalVisualMs;
 
     const runCycle = () => {
       speak(getVoiceText(locale, "in"), locale);
 
-      timersRef.current.push(
-        window.setTimeout(
-          () => speak(getVoiceText(locale, "hold"), locale),
-          inhale
-        )
-      );
+      if (holdTopMs > 0) {
+        timersRef.current.push(
+          window.setTimeout(
+            () => speak(getVoiceText(locale, "hold"), locale),
+            inhaleMs
+          )
+        );
+      }
 
       timersRef.current.push(
         window.setTimeout(
           () => speak(getVoiceText(locale, "out"), locale),
-          inhale + hold
+          inhaleMs + holdTopMs
         )
       );
 
-      timersRef.current.push(window.setTimeout(runCycle, cycle));
+      timersRef.current.push(window.setTimeout(runCycle, cycleMs));
     };
 
     const start = window.setTimeout(runCycle, 50);
@@ -678,10 +938,20 @@ export default function BreathingRoomClient() {
       timersRef.current = [];
       try {
         window.speechSynthesis?.cancel();
-      } catch {}
+      } catch { }
     };
-  }, [mounted, isPro, voiceEnabled, seconds, locale, animNonce]);
+  }, [
+    mounted,
+    isPro,
+    voiceEnabled,
+    locale,
+    phase.inhaleMs,
+    phase.holdTopMs,
+    totalVisualMs,
+    animNonce,
+  ]);
 
+  // SoftBreath start/stop
   useEffect(() => {
     if (!mounted) return;
 
@@ -693,16 +963,7 @@ export default function BreathingRoomClient() {
     }
 
     return () => stopSoftBreath();
-  }, [
-    mounted,
-    isPro,
-    voiceEnabled,
-    seconds,
-    locale,
-    animNonce,
-    scheduleSoftBreath,
-    stopSoftBreath,
-  ]);
+  }, [mounted, isPro, voiceEnabled, animNonce, scheduleSoftBreath, stopSoftBreath]);
 
   useEffect(() => {
     return () => {
@@ -710,185 +971,23 @@ export default function BreathingRoomClient() {
     };
   }, [stopSoftBreath]);
 
-
-/**
- * Haptics Engine Sync
- *
- * BR is the single source of truth.
- * Engines (voice + haptics) are independent and never know about each other.
- *
- * BR mediates:
- * - slider timing
- * - pro gating
- * - voice active state
- */
-
-
-
-// ⭐ HAPTICS ENGINE SYNC (independent engine)
-
-useEffect(() => {
-  if (!mounted) return;
-
-  const h = getHaptics();
-
-  h.attach(); // safe singleton attach
-
-  return () => {
-    h.detach(); // cleanup when leaving BR
-  };
-}, [mounted]);
-
-// slider speed → haptics breathing math
-useEffect(() => {
-  if (!mounted) return;
-
-  const h = getHaptics();
-  h.setCycleSeconds(seconds);
-}, [mounted, seconds]);
-
-// voice toggle → optional voice sync mode
-useEffect(() => {
-  if (!mounted) return;
-
-  const h = getHaptics();
-  h.setVoiceActive(voiceEnabled);
-}, [mounted, voiceEnabled]);
-
-// Pro gating (premium breath haptics)
-useEffect(() => {
-  if (!mounted) return;
-
-  const h = getHaptics();
-  h.setPremiumEnabledForBreath(isPro);
-}, [mounted, isPro]);
-
-
-
-
-
-
-
-
-  // ✅ Short hint (2s then gone)
-  const showHoldHintFor2s = useCallback(() => {
-    setShowHoldHint(true);
-    if (hintTimerRef.current) window.clearTimeout(hintTimerRef.current);
-    hintTimerRef.current = window.setTimeout(() => {
-      setShowHoldHint(false);
-      hintTimerRef.current = null;
-    }, 2000);
-  }, []);
-
+  // ✅ re-trigger animation on speed OR breathMode
   useEffect(() => {
-    return () => {
-      if (holdTimerRef.current) window.clearTimeout(holdTimerRef.current);
-      if (hintTimerRef.current) window.clearTimeout(hintTimerRef.current);
-      if (holdTickRef.current) window.clearTimeout(holdTickRef.current);
-    };
-  }, []);
+    setAnimNonce((n) => n + 1);
+  }, [seconds, breathMode]);
 
-  const surfaceButton = [
-    "w-full rounded-2xl px-4 py-4 text-sm md:text-base md:py-5",
-    "border bg-[var(--btn-bg)] text-[var(--text)]",
-    "border-[color:var(--btn-border)]",
-    "shadow-[var(--btn-shadow)]",
-    "hover:bg-[var(--btn-bg-hover)]",
-    "hover:shadow-[var(--btn-shadow-hover)]",
-    "transition-transform duration-150 ease-out",
-    "active:scale-[0.985] active:translate-y-[1px]",
-    "active:shadow-[var(--btn-pressed-shadow)] active:bg-[var(--press)]",
-  ].join(" ");
+  // ------------------------------------------------------------
+  // UI helpers
+  // ------------------------------------------------------------
 
-  const smallPill = [
-    "inline-flex items-center justify-center gap-2",
-    "rounded-full border px-3 py-2 text-xs md:text-sm md:px-4 md:py-2.5",
-    "border-[color:var(--btn-border)] bg-[var(--btn-bg)] text-[var(--text)]",
-    "shadow-[var(--btn-shadow)]",
-    "hover:bg-[var(--btn-bg-hover)] hover:shadow-[var(--btn-shadow-hover)]",
-    "transition",
-  ].join(" ");
+  const sliderValue = useMemo(() => MAX_SECONDS + MIN_SECONDS - seconds, [seconds]);
 
-  // ✅ Hint chip (single-line)
-  const hintChip = [
-    "inline-flex items-center justify-center",
-    "rounded-full",
-    "border border-white/35",
-    "px-5 py-2.5",
-    "text-xs md:text-sm",
-    "font-semibold",
-    "whitespace-nowrap",
-    "shadow-[0_18px_50px_rgba(0,0,0,0.35)]",
-    "backdrop-blur-2xl",
-  ].join(" ");
-
-  const circleCue =
-    locale === "no" ? "Pust i rytmen" : "Breathe with the rhythm";
-
-  const holdHintText =
-    locale === "no"
-      ? "Trykk på skjermen i 2 sek for å vise alt igjen"
-      : "Press for 2s on the screen to show everything again";
-
-  const openBrTheme = () => {
-    setBrThemeOpen(true);
+  const onSliderChange = (v: number) => {
+    const inverted = MAX_SECONDS + MIN_SECONDS - v;
+    setSeconds(inverted);
   };
 
-  const closeBrTheme = () => {
-    setBrThemeOpen(false);
-  };
-
-  const setFollowAppTheme = () => {
-    setBreathingRoomSkin(null);
-    try {
-      localStorage.setItem(PREFS_KEYS.breathingRoomSkin, "");
-    } catch {}
-  };
-
-  const setFollowAppMode = () => {
-    try {
-      localStorage.setItem(BR_MODE_KEY, "follow");
-    } catch {}
-    setBrMode("follow");
-  };
-
-  const selectBrSkin = (s: ThemeSkin) => {
-    if (!isPro) return;
-    setBreathingRoomSkin(s);
-    try {
-      localStorage.setItem(PREFS_KEYS.breathingRoomSkin, s);
-    } catch {}
-    closeBrTheme();
-  };
-
-  const toggleBrDayNight = () => {
-    const nextIsDark = !effectiveBrIsDark;
-    const nextMode: BrMode = nextIsDark ? "dark" : "light";
-    try {
-      localStorage.setItem(BR_MODE_KEY, nextMode);
-    } catch {}
-    setBrMode(nextMode);
-  };
-
-  const brThemes: ThemeSkin[] = useMemo(
-    () => [
-      "classic",
-      "floating",
-      "nature",
-      "nightpro",
-      "desert",
-      "ocean",
-      "peaceful",
-      "winter",
-    ],
-    []
-  );
-
-  const appThemeLabel = useMemo(() => {
-    return brThemeLabel(locale, appSkin);
-  }, [locale, appSkin]);
-
-  // ✅ Apply preset rules (master)
+  // ✅ apply preset rules (master)
   const effectivePausePrefs = useMemo<BrPausePrefs>(() => {
     return applyPresetRules(brPausePrefs);
   }, [brPausePrefs]);
@@ -922,11 +1021,13 @@ useEffect(() => {
     return !effectivePausePrefs.hideMenuButtons;
   }, [pauseMode, hideAllWhenPaused, effectivePausePrefs.hideMenuButtons]);
 
+  // Slider only in Standard (holy)
   const showSpeedBar = useMemo(() => {
+    if (breathMode !== "standard") return false;
     if (!pauseMode) return true;
     if (hideAllWhenPaused) return false;
     return !effectivePausePrefs.hideSpeedBar;
-  }, [pauseMode, hideAllWhenPaused, effectivePausePrefs.hideSpeedBar]);
+  }, [breathMode, pauseMode, hideAllWhenPaused, effectivePausePrefs.hideSpeedBar]);
 
   const showVoiceToggle = useMemo(() => {
     if (!pauseMode) return true;
@@ -934,7 +1035,6 @@ useEffect(() => {
     return !effectivePausePrefs.hideVoiceToggle;
   }, [pauseMode, hideAllWhenPaused, effectivePausePrefs.hideVoiceToggle]);
 
-  // ✅ Back button visibility follows menu/buttons logic
   const showBackButton = useMemo(() => {
     if (!pauseMode) return true;
     if (hideAllWhenPaused) return false;
@@ -943,18 +1043,21 @@ useEffect(() => {
 
   // ✅ Eye is only visible when SOMETHING else is visible
   const anythingVisible = useMemo(() => {
-    return (
-      showText ||
-      showMenuButtons ||
-      showSpeedBar ||
-      showVoiceToggle ||
-      showBackButton
-    );
+    return showText || showMenuButtons || showSpeedBar || showVoiceToggle || showBackButton;
   }, [showText, showMenuButtons, showSpeedBar, showVoiceToggle, showBackButton]);
 
   const showEyeButton = anythingVisible;
 
-  // ✅ Hint ONLY when ALL is hidden (i.e. no eye + nothing else visible)
+  // ✅ Hint only when ALL hidden
+  const showHoldHintFor2s = useCallback(() => {
+    setShowHoldHint(true);
+    if (hintTimerRef.current) window.clearTimeout(hintTimerRef.current);
+    hintTimerRef.current = window.setTimeout(() => {
+      setShowHoldHint(false);
+      hintTimerRef.current = null;
+    }, 2000);
+  }, []);
+
   useEffect(() => {
     if (!mounted) return;
 
@@ -965,7 +1068,6 @@ useEffect(() => {
       return;
     }
 
-    // otherwise: ensure hint is not shown
     setShowHoldHint(false);
     if (hintTimerRef.current) {
       window.clearTimeout(hintTimerRef.current);
@@ -973,10 +1075,7 @@ useEffect(() => {
     }
   }, [mounted, pauseMode, anythingVisible, showHoldHintFor2s]);
 
-  const enterPauseMode = useCallback(() => {
-    setPauseMode(true);
-  }, []);
-
+  const enterPauseMode = useCallback(() => setPauseMode(true), []);
   const exitPauseMode = useCallback(() => {
     setPauseMode(false);
     setShowHoldHint(false);
@@ -986,7 +1085,7 @@ useEffect(() => {
     }
   }, []);
 
-  // --- Hold tick scheduler (1s, 2s) ---
+  // --- Hold tick scheduler (1s) ---
   const stopHoldTicks = useCallback(() => {
     if (holdTickRef.current) {
       window.clearTimeout(holdTickRef.current);
@@ -1008,7 +1107,6 @@ useEffect(() => {
     holdTickRef.current = window.setTimeout(step, 1000);
   }, [stopHoldTicks]);
 
-  // ✅ Press & hold handlers (2s)
   const endHold = useCallback(() => {
     stopHoldTicks();
     pointerStartRef.current = null;
@@ -1045,8 +1143,118 @@ useEffect(() => {
     [pauseMode, enterPauseMode, exitPauseMode, startHoldTicks, stopHoldTicks]
   );
 
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) window.clearTimeout(holdTimerRef.current);
+      if (hintTimerRef.current) window.clearTimeout(hintTimerRef.current);
+      if (holdTickRef.current) window.clearTimeout(holdTickRef.current);
+    };
+  }, []);
+
+  // ✅ MUST be before any early return
+  const brThemes: ThemeSkin[] = useMemo(
+    () => ["classic", "floating", "nature", "nightpro", "desert", "ocean", "peaceful", "winter"],
+    []
+  );
+
+  const appThemeLabel = useMemo(() => {
+    const isNo = locale === "no";
+    const map: Record<ThemeSkin, string> = {
+      classic: isNo ? "Classic" : "Classic",
+      floating: isNo ? "Bølger" : "Waves",
+      nature: isNo ? "Natur" : "Nature",
+      nightpro: isNo ? "Rolig natt" : "Silent night",
+      desert: isNo ? "Stille sanddyner" : "Quiet dunes",
+      ocean: isNo ? "Rolig hav" : "Gentle ocean",
+      peaceful: isNo ? "Stille morgen" : "Morning meadow",
+      winter: isNo ? "Vinter skog" : "Winter silence",
+    };
+    return map[appSkin];
+  }, [locale, appSkin]);
+
+  // ✅ Slider haptics rule:
+  // When breath-follow vibration is active, slider vibration must be disabled.
+  const breathFollowActive = useMemo(() => {
+    return isPro && hapticsEnabled && breathHapticsEnabled;
+  }, [isPro, hapticsEnabled, breathHapticsEnabled]);
+
   // ✅ IMPORTANT: early return AFTER all hooks
   if (!mounted) return <main className="min-h-[100svh]" />;
+
+  const surfaceButton = [
+    "w-full rounded-2xl px-4 py-4 text-sm md:text-base md:py-5",
+    "border bg-[var(--btn-bg)] text-[var(--text)]",
+    "border-[color:var(--btn-border)]",
+    "shadow-[var(--btn-shadow)]",
+    "hover:bg-[var(--btn-bg-hover)]",
+    "hover:shadow-[var(--btn-shadow-hover)]",
+    "transition-transform duration-150 ease-out",
+    "active:scale-[0.985] active:translate-y-[1px]",
+    "active:shadow-[var(--btn-pressed-shadow)] active:bg-[var(--press)]",
+  ].join(" ");
+
+  const smallPill = [
+    "inline-flex items-center justify-center gap-2",
+    "rounded-full border px-3 py-2 text-xs md:text-sm md:px-4 md:py-2.5",
+    "border-[color:var(--btn-border)] bg-[var(--btn-bg)] text-[var(--text)]",
+    "shadow-[var(--btn-shadow)]",
+    "hover:bg-[var(--btn-bg-hover)] hover:shadow-[var(--btn-shadow-hover)]",
+    "transition",
+  ].join(" ");
+
+  const hintChip = [
+    "inline-flex items-center justify-center",
+    "rounded-full",
+    "border border-white/35",
+    "px-5 py-2.5",
+    "text-xs md:text-sm",
+    "font-semibold",
+    "whitespace-nowrap",
+    "shadow-[0_18px_50px_rgba(0,0,0,0.35)]",
+    "backdrop-blur-2xl",
+  ].join(" ");
+
+  const circleCue = locale === "no" ? "Pust i rytmen" : "Breathe with the rhythm";
+
+  const holdHintText =
+    locale === "no"
+      ? "Trykk på skjermen i 2 sek for å vise alt igjen"
+      : "Press for 2s on the screen to show everything again";
+
+  const openBrTheme = () => setBrThemeOpen(true);
+  const closeBrTheme = () => setBrThemeOpen(false);
+
+  const setFollowAppTheme = () => {
+    setBreathingRoomSkin(null);
+    try {
+      localStorage.setItem(PREFS_KEYS.breathingRoomSkin, "");
+    } catch { }
+  };
+
+  const setFollowAppMode = () => {
+    try {
+      localStorage.setItem(BR_MODE_KEY, "follow");
+    } catch { }
+    setBrMode("follow");
+  };
+
+  const selectBrSkin = (s: ThemeSkin) => {
+    if (!isPro) return;
+    setBreathingRoomSkin(s);
+    try {
+      localStorage.setItem(PREFS_KEYS.breathingRoomSkin, s);
+    } catch { }
+    closeBrTheme();
+  };
+
+  const toggleBrDayNight = () => {
+    const nextIsDark = !effectiveBrIsDark;
+    const nextMode: BrMode = nextIsDark ? "dark" : "light";
+    try {
+      localStorage.setItem(BR_MODE_KEY, nextMode);
+    } catch { }
+    setBrMode(nextMode);
+  };
 
   return (
     <main
@@ -1057,6 +1265,9 @@ useEffect(() => {
         "sm:flex sm:items-center sm:justify-center sm:px-4 sm:py-6 sm:pt-6",
       ].join(" ")}
     >
+      {/* dynamic keyframes */}
+      <style>{keyframesCss}</style>
+
       <div
         className={[
           "w-full pb-[env(safe-area-inset-bottom)]",
@@ -1064,7 +1275,6 @@ useEffect(() => {
           "sm:max-w-md",
         ].join(" ")}
       >
-        {/* ✅ Premium panel wrapper (tokens from globals.css) */}
         <div
           className={[
             "relative w-full h-[100svh] rounded-none p-6",
@@ -1083,9 +1293,8 @@ useEffect(() => {
             boxShadow: "var(--br-panel-shadow)",
             touchAction: "manipulation",
           }}
-          // ✅ press & hold anywhere
           onPointerDown={(e) => {
-            if (e.pointerType === "mouse" && e.buttons !== 1) return;
+            if (e.pointerType === "mouse" && (e as any).buttons !== 1) return;
             startHold(e.clientX, e.clientY);
           }}
           onPointerMove={(e) => {
@@ -1100,7 +1309,6 @@ useEffect(() => {
           onPointerCancel={endHold}
           onPointerLeave={endHold}
         >
-          {/* ✅ Grain layer BEHIND content */}
           <div
             className="pointer-events-none absolute inset-0 sm:rounded-3xl"
             style={{
@@ -1112,7 +1320,6 @@ useEffect(() => {
             }}
           />
 
-          {/* ✅ Eye toggle (pause-mode) */}
           {showEyeButton && (
             <button
               type="button"
@@ -1133,8 +1340,8 @@ useEffect(() => {
                     ? "Vis elementer"
                     : "Show elements"
                   : locale === "no"
-                  ? "Skjul elementer"
-                  : "Hide elements"
+                    ? "Skjul elementer"
+                    : "Hide elements"
               }
               className={[
                 "absolute left-5 top-5 md:left-6 md:top-6",
@@ -1152,9 +1359,7 @@ useEffect(() => {
                 boxShadow:
                   "0 10px 26px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.18)",
               }}
-              onPointerDown={(e) => {
-                e.stopPropagation();
-              }}
+              onPointerDown={(e) => e.stopPropagation()}
             >
               {pauseMode ? (
                 <svg
@@ -1198,7 +1403,6 @@ useEffect(() => {
             </button>
           )}
 
-          {/* ✅ Settings (hamburger) — controlled by pause prefs */}
           {showMenuButtons && (
             <button
               type="button"
@@ -1224,9 +1428,7 @@ useEffect(() => {
                 boxShadow:
                   "0 10px 26px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.18)",
               }}
-              onPointerDown={(e) => {
-                e.stopPropagation();
-              }}
+              onPointerDown={(e) => e.stopPropagation()}
             >
               <svg
                 aria-hidden="true"
@@ -1256,7 +1458,6 @@ useEffect(() => {
             </button>
           )}
 
-          {/* ✅ Short hint (2s) — ONLY when ALL is hidden */}
           {showHoldHint && (
             <div
               className="absolute left-1/2 top-[76px] -translate-x-1/2"
@@ -1277,7 +1478,6 @@ useEffect(() => {
             </div>
           )}
 
-          {/* Layout: top / middle / bottom */}
           <div
             className="relative flex-1 grid grid-rows-[clamp(150px,20vh,200px)_1fr_clamp(190px,26vh,260px)] md:grid-rows-[clamp(150px,18vh,210px)_1fr_clamp(210px,28vh,300px)]"
             style={{ zIndex: 1 }}
@@ -1295,6 +1495,16 @@ useEffect(() => {
                     <div className="hidden md:block">
                       <Title className="hero-title">{t.breathingRoomTitle}</Title>
                     </div>
+
+                    {/* subtle mode label (premium, tiny) */}
+                    {breathMode !== "standard" && (
+                      <div className="mt-2 text-xs md:text-sm text-[var(--muted)]">
+                        {locale === "no" ? "Pustemodus:" : "Breathing mode:"}{" "}
+                        <span className="text-[var(--text)]">
+                          {breathModeLabel(locale, breathMode)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -1317,11 +1527,8 @@ useEffect(() => {
                   boxShadow:
                     "var(--breath-shadow), inset 0 2px 10px rgba(255,255,255,0.12)",
                 }}
-                aria-label={
-                  locale === "no" ? "Pusteindikator" : "Breathing indicator"
-                }
+                aria-label={locale === "no" ? "Pusteindikator" : "Breathing indicator"}
               >
-                {/* Rim-light + lens curvature */}
                 <div
                   className="absolute inset-0 pointer-events-none"
                   style={{
@@ -1333,6 +1540,25 @@ useEffect(() => {
                     opacity: 0.75,
                   }}
                 />
+
+                {/* ✅ pulse overlay (conditional) */}
+                {visualPulseEnabled && (
+                  <div
+                    key={`pulse-${pulseNonce}`}
+                    className="absolute inset-0 pointer-events-none"
+                    data-br-pulse
+                    style={{
+                      zIndex: 3,
+                      borderRadius: "9999px",
+                      backgroundImage:
+                        "radial-gradient(circle at 50% 22%, rgba(255,255,255,0.55), transparent 58%)," +
+                        "radial-gradient(circle at 50% 78%, rgba(255,255,255,0.38), transparent 62%)",
+                      mixBlendMode: "overlay",
+                      opacity: 0,
+                      animation: `${keyframesName}_flash 260ms ease-out`,
+                    }}
+                  />
+                )}
 
                 <div
                   className="absolute inset-0 rounded-full pointer-events-none overflow-hidden"
@@ -1348,7 +1574,6 @@ useEffect(() => {
                       opacity: 0.55,
                     }}
                   />
-
                   <div
                     className="absolute inset-0"
                     style={{
@@ -1357,7 +1582,6 @@ useEffect(() => {
                       opacity: 0.95,
                     }}
                   />
-
                   <div
                     className="absolute inset-0"
                     style={{
@@ -1402,8 +1626,10 @@ useEffect(() => {
                         onChange={(e) => {
                           const next = Number(e.target.value);
 
-                          // ✅ Premium slider “steps” (engine throttles internally)
-                          getHaptics().sliderStepTick();
+                          // slider haptics disabled when breath-follow active
+                          if (!breathFollowActive) {
+                            getHaptics().sliderStepTick();
+                          }
 
                           onSliderChange(next);
                         }}
@@ -1453,14 +1679,14 @@ useEffect(() => {
                             try {
                               const s = window.speechSynthesis;
                               s?.getVoices?.();
-                            } catch {}
+                            } catch { }
 
                             try {
                               if (!breathRef.current)
                                 breathRef.current = new SoftBreath();
                               await breathRef.current.init();
                               breathRef.current.setVolume(0.18);
-                            } catch {}
+                            } catch { }
 
                             setAnimNonce((n) => n + 1);
 
@@ -1503,7 +1729,7 @@ useEffect(() => {
                             stopSoftBreath();
                             try {
                               window.speechSynthesis?.cancel();
-                            } catch {}
+                            } catch { }
                           }}
                           className={smallPill}
                           onPointerDown={(e) => e.stopPropagation()}
@@ -1513,8 +1739,8 @@ useEffect(() => {
                               ? "Deaktiver pro-demo"
                               : "Deactivate pro-demo"
                             : locale === "no"
-                            ? "Aktiver pro-demo"
-                            : "Activate pro-demo"}
+                              ? "Aktiver pro-demo"
+                              : "Activate pro-demo"}
                         </button>
                       )}
                     </div>
@@ -1524,253 +1750,223 @@ useEffect(() => {
                 <div className="w-full" />
               )}
             </div>
-          </div>
 
-          {/* Go back pinned bottom */}
-          {showBackButton && (
-            <div className="relative mt-6 md:mt-10" style={{ zIndex: 1 }}>
-              <button
-                type="button"
-                onClick={() => router.push(`/`)}
-                className={surfaceButton}
-                aria-label={t.goBack}
-                onPointerDown={(e) => e.stopPropagation()}
-              >
-                {t.goBack}
-              </button>
-            </div>
-          )}
-
-          {/* BreathingRoom Theme Sheet */}
-          {brThemeOpen && (
-            <div className="fixed inset-0 z-[100]">
-              <button
-                type="button"
-                aria-label={locale === "no" ? "Lukk" : "Close"}
-                onClick={closeBrTheme}
-                className="absolute inset-0 bg-black/35"
-              />
-
-              <div
-                className={[
-                  "absolute inset-x-0 bottom-0",
-                  "sm:inset-0 sm:flex sm:items-center sm:justify-center",
-                  "p-0 sm:p-6",
-                ].join(" ")}
-              >
-                <div
-                  className={[
-                    "relative w-full",
-                    "rounded-t-3xl sm:rounded-3xl",
-                    "text-[var(--text)]",
-                    "ring-1 ring-[color:var(--border)]",
-                    "backdrop-blur-xl",
-                    "max-h-[88svh] sm:max-h-[80svh]",
-                    "overflow-hidden",
-                  ].join(" ")}
-                  style={{
-                    backgroundColor:
-                      "color-mix(in srgb, var(--app-bg) 86%, rgba(255,255,255,0.16))",
-                    boxShadow:
-                      "0 18px 55px rgba(0,0,0,0.22), 0 2px 0 rgba(255,255,255,0.12) inset",
-                  }}
+            {showBackButton && (
+              <div className="relative mt-6 md:mt-10" style={{ zIndex: 1 }}>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/`)}
+                  className={surfaceButton}
+                  aria-label={t.goBack}
                   onPointerDown={(e) => e.stopPropagation()}
                 >
+                  {t.goBack}
+                </button>
+              </div>
+            )}
+
+            {/* Theme Sheet (unchanged) */}
+            {brThemeOpen && (
+              <div className="fixed inset-0 z-[100]">
+                <button
+                  type="button"
+                  aria-label={locale === "no" ? "Lukk" : "Close"}
+                  onClick={closeBrTheme}
+                  className="absolute inset-0 bg-black/35"
+                />
+
+                <div className={["absolute inset-x-0 bottom-0", "sm:inset-0 sm:flex sm:items-center sm:justify-center", "p-0 sm:p-6"].join(" ")}>
                   <div
-                    className="pointer-events-none absolute inset-0"
+                    className={[
+                      "relative w-full",
+                      "rounded-t-3xl sm:rounded-3xl",
+                      "text-[var(--text)]",
+                      "ring-1 ring-[color:var(--border)]",
+                      "backdrop-blur-xl",
+                      "max-h-[88svh] sm:max-h-[80svh]",
+                      "overflow-hidden",
+                    ].join(" ")}
                     style={{
-                      backgroundImage:
-                        "radial-gradient(1200px 500px at 50% -180px, rgba(255,255,255,0.20), transparent 55%)",
-                      opacity: 0.9,
+                      backgroundColor:
+                        "color-mix(in srgb, var(--app-bg) 86%, rgba(255,255,255,0.16))",
+                      boxShadow:
+                        "0 18px 55px rgba(0,0,0,0.22), 0 2px 0 rgba(255,255,255,0.12) inset",
                     }}
-                  />
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
+                    <div
+                      className="pointer-events-none absolute inset-0"
+                      style={{
+                        backgroundImage:
+                          "radial-gradient(1200px 500px at 50% -180px, rgba(255,255,255,0.20), transparent 55%)",
+                        opacity: 0.9,
+                      }}
+                    />
 
-                  {/* ✅ Top row (minimal): day/night, close */}
-                  <div className="relative flex items-center justify-between px-5 pt-5 pb-3 sm:px-6">
-                    <div className="h-5" aria-hidden="true" />
+                    <div className="relative flex items-center justify-between px-5 pt-5 pb-3 sm:px-6">
+                      <div className="h-5" aria-hidden="true" />
 
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        aria-label={
-                          locale === "no" ? "Bytt dag/natt" : "Toggle day/night"
-                        }
-                        onClick={toggleBrDayNight}
-                        className="relative rounded-full h-8 w-[72px] md:h-10 md:w-[84px] p-1 border border-[color:var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]"
-                        onPointerDown={(e) => e.stopPropagation()}
-                      >
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] opacity-55">
-                          ☀️
-                        </span>
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] opacity-55">
-                          🌙
-                        </span>
-                        <span
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          aria-label={locale === "no" ? "Bytt dag/natt" : "Toggle day/night"}
+                          onClick={toggleBrDayNight}
+                          className="relative rounded-full h-8 w-[72px] md:h-10 md:w-[84px] p-1 border border-[color:var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]"
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] opacity-55">☀️</span>
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] opacity-55">🌙</span>
+                          <span
+                            className={[
+                              "block rounded-full bg-[var(--app-bg)] shadow-sm",
+                              "h-6 w-6 md:h-8 md:w-8",
+                              "transition-transform duration-200",
+                              effectiveBrIsDark
+                                ? "translate-x-[calc(72px-24px-8px)] md:translate-x-[calc(84px-32px-8px)]"
+                                : "translate-x-0",
+                            ].join(" ")}
+                          />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={closeBrTheme}
+                          className="text-sm underline underline-offset-4 text-[var(--muted)] hover:opacity-90"
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
+                          {locale === "no" ? "Lukk" : "Close"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="relative px-5 pb-6 sm:px-6 overflow-y-auto max-h-[calc(88svh-64px)] sm:max-h-[calc(80svh-64px)]">
+                      <div className="pt-2">
+                        <div className="text-sm md:text-base font-medium mb-3">
+                          {locale === "no" ? "Pusterom-tema" : "Breathing room theme"}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            endHold();
+                            closeBrTheme();
+                            router.push("/breathingroom/settings");
+                          }}
                           className={[
-                            "block rounded-full bg-[var(--app-bg)] shadow-sm",
-                            "h-6 w-6 md:h-8 md:w-8",
-                            "transition-transform duration-200",
-                            effectiveBrIsDark
-                              ? "translate-x-[calc(72px-24px-8px)] md:translate-x-[calc(84px-32px-8px)]"
-                              : "translate-x-0",
+                            "w-full rounded-2xl px-4 py-3.5 md:px-5 md:py-4",
+                            "text-sm md:text-base",
+                            "border border-[color:var(--border)]",
+                            "bg-[var(--surface)] text-[var(--text)]",
+                            "hover:bg-[var(--surface-hover)]",
+                            "transition",
                           ].join(" ")}
-                        />
-                      </button>
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
+                          {locale === "no" ? "Personlige innstillinger" : "Personal settings"}
+                        </button>
 
-                      <button
-                        type="button"
-                        onClick={closeBrTheme}
-                        className="text-sm underline underline-offset-4 text-[var(--muted)] hover:opacity-90"
-                        onPointerDown={(e) => e.stopPropagation()}
-                      >
-                        {locale === "no" ? "Lukk" : "Close"}
-                      </button>
-                    </div>
-                  </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFollowAppTheme();
+                            setFollowAppMode();
+                            closeBrTheme();
+                          }}
+                          className={[
+                            "mt-3 w-full rounded-2xl px-4 py-3.5 md:px-5 md:py-4",
+                            "text-sm md:text-base",
+                            "border border-[color:var(--border)]",
+                            "bg-[var(--surface)] text-[var(--text)]",
+                            "hover:bg-[var(--surface-hover)]",
+                            "transition",
+                            "text-left",
+                          ].join(" ")}
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
+                          <div className="font-medium">
+                            {locale === "no" ? "Følg appens tema" : "Follow app theme"}
+                          </div>
+                          <div className="mt-1 text-xs md:text-sm text-[var(--muted)]">
+                            {locale === "no" ? `App-tema: ${appThemeLabel}` : `App theme: ${appThemeLabel}`}
+                          </div>
+                        </button>
 
-                  {/* ✅ Scrollable content (whole sheet) */}
-                  <div className="relative px-5 pb-6 sm:px-6 overflow-y-auto max-h-[calc(88svh-64px)] sm:max-h-[calc(80svh-64px)]">
-                    <div className="pt-2">
-                      <div className="text-sm md:text-base font-medium mb-3">
-                        {locale === "no"
-                          ? "Pusterom-tema"
-                          : "Breathing room theme"}
-                      </div>
+                        <div className="mt-4 grid grid-cols-2 gap-3 md:gap-4">
+                          {brThemes.map((s) => {
+                            const selected = isPro && breathingRoomSkin === s;
+                            const locked = !isPro;
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          endHold();
-                          closeBrTheme();
-                          router.push("/breathingroom/settings");
-                        }}
-                        className={[
-                          "w-full rounded-2xl px-4 py-3.5 md:px-5 md:py-4",
-                          "text-sm md:text-base",
-                          "border border-[color:var(--border)]",
-                          "bg-[var(--surface)] text-[var(--text)]",
-                          "hover:bg-[var(--surface-hover)]",
-                          "transition",
-                        ].join(" ")}
-                        onPointerDown={(e) => e.stopPropagation()}
-                      >
-                        {locale === "no"
-                          ? "Personlige innstillinger"
-                          : "Personal settings"}
-                      </button>
+                            return (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => selectBrSkin(s)}
+                                className={[
+                                  "relative rounded-2xl px-4 py-3.5 md:px-5 md:py-4",
+                                  "text-sm md:text-base",
+                                  "border border-[color:var(--border)]",
+                                  "bg-[var(--surface)] text-[var(--text)]",
+                                  "hover:bg-[var(--surface-hover)]",
+                                  "transition",
+                                  locked ? "opacity-60 cursor-not-allowed" : "",
+                                  selected ? "ring-2 ring-[color:var(--ring)]" : "",
+                                ].join(" ")}
+                                aria-label={s}
+                                onPointerDown={(e) => e.stopPropagation()}
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="truncate">{s}</div>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFollowAppTheme();
-                          setFollowAppMode();
-                          closeBrTheme();
-                        }}
-                        className={[
-                          "mt-3 w-full rounded-2xl px-4 py-3.5 md:px-5 md:py-4",
-                          "text-sm md:text-base",
-                          "border border-[color:var(--border)]",
-                          "bg-[var(--surface)] text-[var(--text)]",
-                          "hover:bg-[var(--surface-hover)]",
-                          "transition",
-                          "text-left",
-                        ].join(" ")}
-                        onPointerDown={(e) => e.stopPropagation()}
-                      >
-                        <div className="font-medium">
-                          {locale === "no"
-                            ? "Følg appens tema"
-                            : "Follow app theme"}
-                        </div>
-                        <div className="mt-1 text-xs md:text-sm text-[var(--muted)]">
-                          {locale === "no"
-                            ? `App-tema: ${appThemeLabel}`
-                            : `App theme: ${appThemeLabel}`}
-                        </div>
-                      </button>
-
-                      <div className="mt-4 grid grid-cols-2 gap-3 md:gap-4">
-                        {brThemes.map((s) => {
-                          const selected = isPro && breathingRoomSkin === s;
-                          const locked = !isPro;
-
-                          return (
-                            <button
-                              key={s}
-                              type="button"
-                              onClick={() => selectBrSkin(s)}
-                              className={[
-                                "relative rounded-2xl px-4 py-3.5 md:px-5 md:py-4",
-                                "text-sm md:text-base",
-                                "border border-[color:var(--border)]",
-                                "bg-[var(--surface)] text-[var(--text)]",
-                                "hover:bg-[var(--surface-hover)]",
-                                "transition",
-                                locked ? "opacity-60 cursor-not-allowed" : "",
-                                selected ? "ring-2 ring-[color:var(--ring)]" : "",
-                              ].join(" ")}
-                              aria-label={brThemeLabel(locale, s)}
-                              onPointerDown={(e) => e.stopPropagation()}
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="truncate">
-                                  {brThemeLabel(locale, s)}
-                                </div>
-
-                                {selected ? (
-                                  <div
-                                    className="h-5 w-5 rounded-full bg-white/20 ring-1 ring-white/25 flex items-center justify-center"
-                                    aria-hidden="true"
-                                  >
-                                    <div className="h-2.5 w-2.5 rounded-full bg-white/85" />
-                                  </div>
-                                ) : locked ? (
-                                  <div
-                                    className="h-5 w-5 rounded-full bg-black/10 ring-1 ring-black/10 flex items-center justify-center"
-                                    aria-hidden="true"
-                                  >
-                                    <svg
-                                      viewBox="0 0 24 24"
-                                      className="h-4 w-4"
-                                      fill="none"
+                                  {selected ? (
+                                    <div
+                                      className="h-5 w-5 rounded-full bg-white/20 ring-1 ring-white/25 flex items-center justify-center"
+                                      aria-hidden="true"
                                     >
-                                      <path
-                                        d="M7.5 10V8.2C7.5 5.6 9.4 3.75 12 3.75C14.6 3.75 16.5 5.6 16.5 8.2V10"
-                                        stroke="currentColor"
-                                        strokeWidth="1.8"
-                                        strokeLinecap="round"
-                                      />
-                                      <path
-                                        d="M7.2 10H16.8C18 10 18.75 10.75 18.75 11.95V17.8C18.75 19 18 19.75 16.8 19.75H7.2C6 19.75 5.25 19 5.25 17.8V11.95C5.25 10.75 6 10 7.2 10Z"
-                                        stroke="currentColor"
-                                        strokeWidth="1.8"
-                                        strokeLinejoin="round"
-                                      />
-                                    </svg>
-                                  </div>
-                                ) : (
-                                  <div className="h-5 w-5" aria-hidden="true" />
-                                )}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {!isPro && (
-                        <div className="mt-3 text-center text-xs md:text-sm text-[var(--muted)]">
-                          {locale === "no"
-                            ? "Pusterom-tema er tilgjengelig i Pro-versjonen."
-                            : "Breathing room theme is available in the Pro version."}
+                                      <div className="h-2.5 w-2.5 rounded-full bg-white/85" />
+                                    </div>
+                                  ) : locked ? (
+                                    <div
+                                      className="h-5 w-5 rounded-full bg-black/10 ring-1 ring-black/10 flex items-center justify-center"
+                                      aria-hidden="true"
+                                    >
+                                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none">
+                                        <path
+                                          d="M7.5 10V8.2C7.5 5.6 9.4 3.75 12 3.75C14.6 3.75 16.5 5.6 16.5 8.2V10"
+                                          stroke="currentColor"
+                                          strokeWidth="1.8"
+                                          strokeLinecap="round"
+                                        />
+                                        <path
+                                          d="M7.2 10H16.8C18 10 18.75 10.75 18.75 11.95V17.8C18.75 19 18 19.75 16.8 19.75H7.2C6 19.75 5.25 19 5.25 17.8V11.95C5.25 10.75 6 10 7.2 10Z"
+                                          stroke="currentColor"
+                                          strokeWidth="1.8"
+                                          strokeLinejoin="round"
+                                        />
+                                      </svg>
+                                    </div>
+                                  ) : (
+                                    <div className="h-5 w-5" aria-hidden="true" />
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>
-                      )}
+
+                        {!isPro && (
+                          <div className="mt-3 text-center text-xs md:text-sm text-[var(--muted)]">
+                            {locale === "no"
+                              ? "Pusterom-tema er tilgjengelig i Pro-versjonen."
+                              : "Breathing room theme is available in the Pro version."}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  {/* end scroll */}
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </main>

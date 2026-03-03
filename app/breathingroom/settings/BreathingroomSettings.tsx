@@ -1,5 +1,3 @@
-// app/breathingroom/settings/BreathingroomSettings.tsx
-
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -10,6 +8,12 @@ import { UI_TEXT } from "../../data/uiText";
 
 import { getHaptics } from "../../lib/haptics";
 
+// ✅ NEW: unified info toggle (uses InfoButton)
+import InfoToggle from "../../components/InfoToggle";
+
+import { IconDot, IconLeaf, IconMoon, IconZen } from "../../components/BreathModeIcons";
+
+
 // Same keys as in BR client
 const LOCALE_KEY = "pause-locale";
 
@@ -19,9 +23,17 @@ const BR_VOICE_GENDER_KEY = "pause-br-voice-gender"; // "female" | "male"
 // Haptics base toggle (already used in BR)
 const BR_HAPTICS_KEY = "pause-br-haptics"; // "1" | "0"
 
-// New keys for settings (safe to add now)
+// New keys for settings
 const BR_HAPTICS_INTENSITY_KEY = "pause-br-haptics-intensity"; // "low" | "med" | "high"
 const BR_BREATH_HAPTICS_KEY = "pause-br-breath-haptics"; // "1" | "0" (pro)
+
+// New Breathingmodes
+const BR_BREATH_MODE_KEY = "pause-br-breath-mode"; // "standard" | "release" | "deep-calm" | "stillness"
+
+// Visual pulse toggle
+const BR_VISUAL_PULSE_KEY = "pause-br-visual-pulse"; // "1" | "0"
+
+type BreathMode = "standard" | "release" | "deep-calm" | "stillness";
 
 type PausePreset = "none" | "alwaysHideAll" | "alwaysShowAll";
 type VoiceGender = "female" | "male";
@@ -265,7 +277,67 @@ export default function BreathingroomSettings() {
 
   const [mounted, setMounted] = useState(false);
   const [locale, setLocale] = useState<Locale>("no");
-  useMemo(() => UI_TEXT[locale], [locale]);
+  const t = useMemo(() => UI_TEXT[locale], [locale]);
+
+  // ✅ One place for all infotoggle texts (UPDATED per your new “master” rules)
+  const INFO = useMemo(
+    () =>
+      ({
+        section: {
+          pauseMode: {
+            no: "Velg hva som skjules når du går inn i pause-modus.\nTips: Trykk på skjermen i 2 sek for å få alt tilbake.",
+            en: "Choose what hides when you enter pause mode.\nTip: press screen for 2s to show everything again.",
+          },
+
+          // ✅ MASTER: all breathing modes info lives here now
+          breathingMode: {
+            no:
+              "Standard: Din standard pause-opplevelse.\n" +
+              "Slipp: For når tankene går fort.\n" +
+              "Dyp ro: For når kroppen er urolig.\n" +
+              "Stillhet: For når du vil helt ned i hvile.",
+            en:
+              "Standard: Your standard pause experience.\n" +
+              "Release: When your thoughts won’t slow down.\n" +
+              "Deep calm: When your body feels unsettled.\n" +
+              "Stillness: When you want to sink into deep rest.",
+          },
+
+          visualPulse: {
+            no: "Rolige visuelle blink synket med vibrasjon.\nSlå av om du vil ha helt rolig skjerm.",
+            en: "Soft visual flashes synced with haptics.\nTurn off for a calmer screen.",
+          },
+
+          // ✅ MASTER: haptics + breath haptics baked into this one
+          haptics: {
+            no:
+              "Telefonen kan guide pusten din med vibrasjon.\n" +
+              "Tips: legg telefonen på brystet for en avslappet pusteopplevelse.\n" +
+              "Vibrasjonen følger inn og utpust.\n" +
+              "OBS: Fungerer kun på mobiltelefon.",
+            en:
+              "Your phone can guide your breathing with vibration.\n" +
+              "Tip: Place your phone on your chest for a more relaxed experience.\n\n" +
+              "The vibration follows inhale and exhale.n" +
+              " Vibration only works on cellphhones"
+          },
+
+          voice: {
+            no: "Velg stemmen som føles trygg.\nLagres lokalt på enheten.",
+            en: "Choose the voice that feels safe.\nStored locally on this device.",
+          },
+        },
+      }) as const,
+    []
+  );
+
+  // Breath mode + persisted snapshot
+  const [breathMode, setBreathMode] = useState<BreathMode>("standard");
+  const persistedBreathModeRef = useRef<BreathMode>("standard");
+
+  // Visual pulse (default ON)
+  const [visualPulseEnabled, setVisualPulseEnabled] = useState(true);
+  const persistedVisualPulseRef = useRef(true);
 
   // Draft state (NOT persisted until Save)
   const [pausePrefs, setPausePrefs] = useState<BrPausePrefs>(
@@ -285,6 +357,9 @@ export default function BreathingroomSettings() {
     intensity: HapticsIntensity;
     breath: boolean;
   }>({ enabled: true, intensity: "med", breath: false });
+
+  // ✅ Infotoggle open state (shared; only one open at a time)
+  const [openInfoId, setOpenInfoId] = useState<string | null>(null);
 
   // 🔒 IMPORTANT: force re-render after saving (so Save disables immediately)
   const [persistVersion, setPersistVersion] = useState(0);
@@ -321,6 +396,23 @@ export default function BreathingroomSettings() {
   // Load initial values once
   useEffect(() => {
     if (!mounted) return;
+
+    // Breath mode
+    const bmRaw = safeReadStr(BR_BREATH_MODE_KEY, "standard")
+      .trim()
+      .toLowerCase();
+    const loadedMode: BreathMode =
+      bmRaw === "release" || bmRaw === "deep-calm" || bmRaw === "stillness"
+        ? (bmRaw as BreathMode)
+        : "standard";
+    persistedBreathModeRef.current = loadedMode;
+    setBreathMode(loadedMode);
+
+    // Visual pulse (default ON)
+    const vpRaw = safeReadStr(BR_VISUAL_PULSE_KEY, "1");
+    const loadedVP = vpRaw !== "0";
+    persistedVisualPulseRef.current = loadedVP;
+    setVisualPulseEnabled(loadedVP);
 
     // Pause prefs
     const p = safeReadJson<Partial<BrPausePrefs>>(
@@ -384,7 +476,7 @@ export default function BreathingroomSettings() {
     "rounded-2xl",
     "border border-[rgba(255,255,255,0.18)]",
     "backdrop-blur-xl",
-    "overflow-hidden", // keep card clean; no controls should overflow now
+    "overflow-hidden",
   ].join(" ");
 
   const cardInner = "px-4 py-4 md:px-5 md:py-5";
@@ -415,7 +507,6 @@ export default function BreathingroomSettings() {
     "max-w-full",
   ].join(" ");
 
-  // ✅ Make selected state more obvious (only visual tweak)
   const pillOn = "ring-2 ring-[rgba(255,255,255,0.36)]";
 
   const pillStyle = (active: boolean) => ({
@@ -442,7 +533,6 @@ export default function BreathingroomSettings() {
         ? "Velg hva som skjules når du går inn i pause-modus."
         : "Choose what hides when you enter pause mode.";
 
-  // ✅ persistVersion included so Save disables immediately after saving
   const isPauseDirty = useMemo(() => {
     return !pausePrefsEqual(pausePrefs, persistedPauseRef.current);
   }, [pausePrefs, persistVersion]);
@@ -460,11 +550,18 @@ export default function BreathingroomSettings() {
     );
   }, [hapticsEnabled, hapticsIntensity, breathHapticsEnabled, persistVersion]);
 
+  const isBreathModeDirty = useMemo(() => {
+    return (
+      breathMode !== persistedBreathModeRef.current ||
+      visualPulseEnabled !== persistedVisualPulseRef.current
+    );
+  }, [breathMode, visualPulseEnabled, persistVersion]);
+
   const savePauseSection = () => {
     if (!isPauseDirty) return;
     safeWriteJson(BR_PAUSE_PREFS_KEY, pausePrefs);
     persistedPauseRef.current = pausePrefs;
-    setPersistVersion((v) => v + 1); // ✅ re-render to disable Save
+    setPersistVersion((v) => v + 1);
     announceSettingsChanged();
     showToast(locale === "no" ? "Innstillinger lagret" : "Settings saved");
   };
@@ -479,7 +576,21 @@ export default function BreathingroomSettings() {
       intensity: hapticsIntensity,
       breath: breathHapticsEnabled,
     };
-    setPersistVersion((v) => v + 1); // ✅ re-render to disable Save
+    setPersistVersion((v) => v + 1);
+    announceSettingsChanged();
+    showToast(locale === "no" ? "Innstillinger lagret" : "Settings saved");
+  };
+
+  const saveBreathModeSection = () => {
+    if (!isBreathModeDirty) return;
+
+    safeWriteStr(BR_BREATH_MODE_KEY, breathMode);
+    persistedBreathModeRef.current = breathMode;
+
+    safeWriteStr(BR_VISUAL_PULSE_KEY, visualPulseEnabled ? "1" : "0");
+    persistedVisualPulseRef.current = visualPulseEnabled;
+
+    setPersistVersion((v) => v + 1);
     announceSettingsChanged();
     showToast(locale === "no" ? "Innstillinger lagret" : "Settings saved");
   };
@@ -488,7 +599,7 @@ export default function BreathingroomSettings() {
     if (!isVoiceDirty) return;
     safeWriteStr(BR_VOICE_GENDER_KEY, voiceGender);
     persistedVoiceRef.current = voiceGender;
-    setPersistVersion((v) => v + 1); // ✅ re-render to disable Save
+    setPersistVersion((v) => v + 1);
     announceSettingsChanged();
     showToast(locale === "no" ? "Innstillinger lagret" : "Settings saved");
   };
@@ -499,6 +610,17 @@ export default function BreathingroomSettings() {
     const nextEnabled = true;
     const nextIntensity: HapticsIntensity = "med";
     const nextBreath = false;
+
+    // Reset breath mode + visual pulse
+    const nextBreathMode: BreathMode = "standard";
+    const nextVisualPulse = true;
+
+    setBreathMode(nextBreathMode);
+    setVisualPulseEnabled(nextVisualPulse);
+    safeWriteStr(BR_BREATH_MODE_KEY, nextBreathMode);
+    safeWriteStr(BR_VISUAL_PULSE_KEY, "1");
+    persistedBreathModeRef.current = nextBreathMode;
+    persistedVisualPulseRef.current = nextVisualPulse;
 
     setPausePrefs(nextPause);
     setVoiceGender(nextVoice);
@@ -519,13 +641,19 @@ export default function BreathingroomSettings() {
       intensity: nextIntensity,
       breath: nextBreath,
     };
-    setPersistVersion((v) => v + 1); // ✅ re-render so Save returns to disabled
+
+    setPersistVersion((v) => v + 1);
 
     announceSettingsChanged();
     showToast(locale === "no" ? "Innstillinger lagret" : "Settings saved");
   };
 
   if (!mounted) return <main className="min-h-[100svh]" />;
+
+  // ✅ locked alignment params
+  const infoRowWrap = "flex items-stretch gap-3 w-full";
+  const infoRightCol =
+    "w-[44px] shrink-0 flex items-center justify-center overflow-visible";
 
   return (
     <main
@@ -538,7 +666,6 @@ export default function BreathingroomSettings() {
           "radial-gradient(1200px 520px at 50% -140px, rgba(255,255,255,0.12), transparent 55%), var(--br-grain)",
       }}
     >
-      {/* FIXED toast overlay (always above everything) */}
       {toast && (
         <div
           className="fixed left-1/2 -translate-x-1/2 pointer-events-none"
@@ -568,7 +695,6 @@ export default function BreathingroomSettings() {
         </div>
       )}
 
-      {/* Top bar (Back positioned with more air + aligned) */}
       <div
         className={[
           "sticky top-0",
@@ -584,16 +710,9 @@ export default function BreathingroomSettings() {
         }}
       >
         <div
-          className={[
-            "max-w-2xl mx-auto",
-            "px-4 md:px-8",
-            "pb-5",
-          ].join(" ")}
-          style={{
-            paddingTop: "calc(env(safe-area-inset-top) + 24px)",
-          }}
+          className={["max-w-2xl mx-auto", "px-4 md:px-8", "pb-5"].join(" ")}
+          style={{ paddingTop: "calc(env(safe-area-inset-top) + 24px)" }}
         >
-
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
@@ -639,12 +758,27 @@ export default function BreathingroomSettings() {
             }}
           >
             <div className={cardInner}>
-              <div className={sectionTitle}>
-                {locale === "no" ? "Pause-modus" : "Pause mode"}
+              <div className={infoRowWrap}>
+                <div className="flex-1 min-w-0">
+                  <div className={sectionTitle}>
+                    {locale === "no" ? "Pause-modus" : "Pause mode"}
+                  </div>
+                </div>
+
+                <div className={infoRightCol}>
+                  <InfoToggle
+                    id="info-section-pause"
+                    locale={locale}
+                    openId={openInfoId}
+                    setOpenId={setOpenInfoId}
+                    textNo={INFO.section.pauseMode.no}
+                    textEn={INFO.section.pauseMode.en}
+                  />
+                </div>
               </div>
+
               <div className={[sectionDesc, "mt-1"].join(" ")}>{pauseDesc}</div>
 
-              {/* Presets: force wrap safely so Customize NEVER overflows */}
               <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-2">
                 <button
                   type="button"
@@ -714,7 +848,6 @@ export default function BreathingroomSettings() {
 
             <div className={divider} />
 
-            {/* Toggle rows (Eye icon only) */}
             <div className="py-1">
               {(
                 [
@@ -739,9 +872,7 @@ export default function BreathingroomSettings() {
                   {
                     key: "hideVoiceToggle",
                     label:
-                      locale === "no"
-                        ? "Skjul stemme-knapp"
-                        : "Hide voice toggle",
+                      locale === "no" ? "Skjul stemme-knapp" : "Hide voice toggle",
                     value: pausePrefs.hideVoiceToggle,
                   },
                 ] as Array<{
@@ -804,6 +935,221 @@ export default function BreathingroomSettings() {
             />
           </section>
 
+          {/* Breath mode */}
+          <section
+            className={glassCard}
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.20))",
+              boxShadow:
+                "0 18px 55px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.12)",
+            }}
+          >
+            <div className={cardInner}>
+              <div className={infoRowWrap}>
+                <div className="flex-1 min-w-0">
+                  <div className={sectionTitle}>
+                    {locale === "no" ? "Pustemodus" : "Breathing mode"}
+                  </div>
+                </div>
+
+                {/* ✅ MASTER ONLY */}
+                <div className={infoRightCol}>
+                  <InfoToggle
+                    id="info-section-breathingmode"
+                    locale={locale}
+                    openId={openInfoId}
+                    setOpenId={setOpenInfoId}
+                    textNo={INFO.section.breathingMode.no}
+                    textEn={INFO.section.breathingMode.en}
+                  />
+                </div>
+              </div>
+
+              <div className={[sectionDesc, "mt-1"].join(" ")}>
+                {locale === "no"
+                  ? "Hvilken modus føles komfortabelt i dag?."
+                  : "Which mode feels more comfortable now?"}
+              </div>
+
+              {/* ✅ NO per-mode info toggles anymore */}
+              <div className="mt-4 flex flex-col gap-2">
+                {(
+                  [
+                    {
+                      id: "standard",
+                      title: locale === "no" ? "Standard" : "Standard",
+                      desc:
+                        locale === "no"
+                          ? "Din standard pause opplevelse."
+                          : "Your standard pause experience.",
+                      Icon: IconDot,
+                    },
+                    {
+                      id: "release",
+                      title: locale === "no" ? "Slipp" : "Release",
+                      desc:
+                        locale === "no"
+                          ? "For når tankene går fort."
+                          : "When your thoughts won’t slow down.",
+                      Icon: IconLeaf,
+                    },
+                    {
+                      id: "deep-calm",
+                      title: locale === "no" ? "Dyp ro" : "Deep calm",
+                      desc:
+                        locale === "no"
+                          ? "For når kroppen er urolig."
+                          : "When your body feels unsettled.",
+                      Icon: IconMoon,
+                    },
+                    {
+                      id: "stillness",
+                      title: locale === "no" ? "Stillhet" : "Stillness",
+                      desc:
+                        locale === "no"
+                          ? "For når du vil helt ned i hvile."
+                          : "When you want to sink into deep rest.",
+                      Icon: IconZen,
+                    },
+                  ] as Array<{
+                    id: BreathMode;
+                    title: string;
+                    desc: string;
+                    Icon: React.ComponentType<{ className?: string }>;
+                  }>
+                ).map((m) => {
+                  const active = breathMode === m.id;
+
+                  return (
+                    <div key={m.id}>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        className={[
+                          "w-full",
+                          "min-w-0",
+                          "text-left",
+                          "rounded-2xl",
+                          "px-4 py-3.5 md:px-5 md:py-4",
+                          "border",
+                          "transition",
+                          active ? "ring-2 ring-[rgba(255,255,255,0.28)]" : "",
+                        ].join(" ")}
+                        style={{
+                          border: active
+                            ? "1px solid rgba(255,255,255,0.42)"
+                            : "1px solid rgba(255,255,255,0.22)",
+                          background: active
+                            ? "linear-gradient(180deg, rgba(255,255,255,0.14), rgba(0,0,0,0.14))"
+                            : "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.20))",
+                          boxShadow: active
+                            ? "0 18px 40px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.14)"
+                            : "0 12px 28px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.10)",
+                          color: "var(--text)",
+                        }}
+                        onClick={() => setBreathMode(m.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setBreathMode(m.id);
+                          }
+                        }}
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div
+                            className="mt-[2px] shrink-0"
+                            aria-hidden="true"
+                          >
+                            <m.Icon
+                              className={[
+                                "h-6 w-6 transition-opacity duration-200",
+                                active ? "opacity-100" : "opacity-50",
+                              ].join(" ")}
+                            />
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="text-sm md:text-base font-medium">
+                              {m.title}
+                            </div>
+                            <div className="mt-0.5 text-xs md:text-sm text-[var(--muted)] leading-snug">
+                              {m.desc}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Visual pulse toggle */}
+              <div className="mt-4">
+                <div className={infoRowWrap}>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm md:text-base font-medium text-[var(--text)]">
+                      {locale === "no"
+                        ? "Lyspuls på sirkelen"
+                        : "Circle light pulse"}
+                    </div>
+                  </div>
+
+                  <div className={infoRightCol}>
+                    <InfoToggle
+                      id="info-section-visualpulse"
+                      locale={locale}
+                      openId={openInfoId}
+                      setOpenId={setOpenInfoId}
+                      textNo={INFO.section.visualPulse.no}
+                      textEn={INFO.section.visualPulse.en}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-1 text-xs md:text-sm text-[var(--muted)] leading-snug">
+                  {locale === "no"
+                    ? "Rolige visuelle blink synket med vibrasjon"
+                    : "Gentle visual flashes synced with haptics"}
+                </div>
+
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    className={[
+                      pillBase,
+                      "px-4 md:px-5",
+                      !visualPulseEnabled ? pillOn : "",
+                    ].join(" ")}
+                    style={pillStyle(!visualPulseEnabled)}
+                    onClick={() => setVisualPulseEnabled(false)}
+                  >
+                    {locale === "no" ? "Av" : "Off"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className={[
+                      pillBase,
+                      "px-4 md:px-5",
+                      visualPulseEnabled ? pillOn : "",
+                    ].join(" ")}
+                    style={pillStyle(visualPulseEnabled)}
+                    onClick={() => setVisualPulseEnabled(true)}
+                  >
+                    {locale === "no" ? "På" : "On"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <SaveBar
+              onSave={saveBreathModeSection}
+              label={locale === "no" ? "Lagre" : "Save"}
+              disabled={!isBreathModeDirty}
+            />
+          </section>
+
           {/* Haptics */}
           <section
             className={glassCard}
@@ -815,9 +1161,26 @@ export default function BreathingroomSettings() {
             }}
           >
             <div className={cardInner}>
-              <div className={sectionTitle}>
-                {locale === "no" ? "Vibrasjon" : "Haptics"}
+              <div className={infoRowWrap}>
+                <div className="flex-1 min-w-0">
+                  <div className={sectionTitle}>
+                    {locale === "no" ? "Vibrasjon" : "Haptics"}
+                  </div>
+                </div>
+
+                {/* ✅ MASTER ONLY */}
+                <div className={infoRightCol}>
+                  <InfoToggle
+                    id="info-section-haptics"
+                    locale={locale}
+                    openId={openInfoId}
+                    setOpenId={setOpenInfoId}
+                    textNo={INFO.section.haptics.no}
+                    textEn={INFO.section.haptics.en}
+                  />
+                </div>
               </div>
+
               <div className={[sectionDesc, "mt-1"].join(" ")}>
                 {locale === "no"
                   ? "Vibrasjons assistent for pusterom."
@@ -828,7 +1191,6 @@ export default function BreathingroomSettings() {
             <div className={divider} />
 
             <div className="py-1">
-              {/* Vibration on/off -> pills (NOT eye) */}
               <div
                 className={rowBase}
                 aria-label={locale === "no" ? "Vibrasjon" : "Vibration"}
@@ -863,7 +1225,6 @@ export default function BreathingroomSettings() {
                     style={pillStyle(hapticsEnabled)}
                     onClick={() => {
                       setHapticsEnabled(true);
-
                       try {
                         getHaptics().confirmEnabled();
                       } catch { }
@@ -876,7 +1237,6 @@ export default function BreathingroomSettings() {
 
               <div className={divider} />
 
-              {/* Intensity */}
               <div className={rowBase}>
                 <div className="flex-1 min-w-0 pr-2">
                   <div className={rowLabel}>
@@ -885,9 +1245,7 @@ export default function BreathingroomSettings() {
 
                   {!hapticsEnabled && (
                     <div className={rowSub}>
-                      {locale === "no"
-                        ? "Vibrasjon påkrevd."
-                        : "Vibration required."}
+                      {locale === "no" ? "Vibrasjon påkrevd." : "Vibration required."}
                     </div>
                   )}
                 </div>
@@ -917,22 +1275,14 @@ export default function BreathingroomSettings() {
                         onClick={() => {
                           if (!hapticsEnabled) return;
 
-                          // update UI state
                           setHapticsIntensity(val);
 
-                          // keep BR + engine synced instantly
                           try {
-                            localStorage.setItem(
-                              "pause-br-haptics-intensity",
-                              val
-                            );
+                            localStorage.setItem(BR_HAPTICS_INTENSITY_KEY, val);
                           } catch { }
 
-                          window.dispatchEvent(
-                            new Event("pause-br-settings-changed")
-                          );
+                          announceSettingsChanged();
 
-                          // ⭐ REAL FEEDBACK PREVIEW (~2s)
                           try {
                             getHaptics().previewIntensity(val);
                           } catch { }
@@ -945,20 +1295,18 @@ export default function BreathingroomSettings() {
                 </div>
               </div>
 
-
               <div className={divider} />
 
-              {/* Breath haptics -> pills (NOT eye) */}
+              {/* ✅ Pustevibrasjon: NO individual info toggle anymore */}
               <div
                 className={rowBase}
                 aria-label={locale === "no" ? "Pustevibrasjon" : "Breath haptics"}
               >
                 <div className="flex-1 min-w-0 pr-2">
                   <div className={rowLabel}>
-                    {locale === "no"
-                      ? "Pustevibrasjon"
-                      : "Breath haptics"}
+                    {locale === "no" ? "Pustevibrasjon" : "Breath haptics"}
                   </div>
+
                   <div className={rowSub}>
                     {!isPro
                       ? locale === "no"
@@ -992,6 +1340,7 @@ export default function BreathingroomSettings() {
                   >
                     {locale === "no" ? "Av" : "Off"}
                   </button>
+
                   <button
                     type="button"
                     disabled={!canUseBreathHaptics}
@@ -1006,8 +1355,6 @@ export default function BreathingroomSettings() {
                       if (!canUseBreathHaptics) return;
 
                       setBreathHapticsEnabled(true);
-
-                      // ✅ small haptic confirmation when enabling breath-follow
                       try {
                         getHaptics().confirmBreathEnabled();
                       } catch { }
@@ -1037,9 +1384,25 @@ export default function BreathingroomSettings() {
             }}
           >
             <div className={cardInner}>
-              <div className={sectionTitle}>
-                {locale === "no" ? "Stemme" : "Voice"}
+              <div className={infoRowWrap}>
+                <div className="flex-1 min-w-0">
+                  <div className={sectionTitle}>
+                    {locale === "no" ? "Stemme" : "Voice"}
+                  </div>
+                </div>
+
+                <div className={infoRightCol}>
+                  <InfoToggle
+                    id="info-section-voice"
+                    locale={locale}
+                    openId={openInfoId}
+                    setOpenId={setOpenInfoId}
+                    textNo={INFO.section.voice.no}
+                    textEn={INFO.section.voice.en}
+                  />
+                </div>
               </div>
+
               <div className={[sectionDesc, "mt-1"].join(" ")}>
                 {locale === "no"
                   ? "Valg lagres lokalt på enheten."
@@ -1122,30 +1485,6 @@ export default function BreathingroomSettings() {
                 >
                   {locale === "no" ? "Nullstill" : "Reset"}
                 </button>
-              </div>
-            </div>
-          </section>
-
-          {/* Future note */}
-          <section
-            className={glassCard}
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.22))",
-              boxShadow:
-                "0 18px 55px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.10)",
-            }}
-          >
-            <div className={cardInner}>
-              <div className={sectionTitle}>
-                {locale === "no"
-                  ? "Senere (hovedinnstillinger)"
-                  : "Later (main settings)"}
-              </div>
-              <div className={[sectionDesc, "mt-1"].join(" ")}>
-                {locale === "no"
-                  ? "Når vi lager main settings senere, legger vi inn ting som: slette data, konto, e-post, vilkår og personvern — men dette blir en egen fullskjerm-del."
-                  : "When we build main settings later, we’ll add: delete data, account, email, terms & privacy — as a separate full-screen area."}
               </div>
             </div>
           </section>

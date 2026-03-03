@@ -1,4 +1,3 @@
-// app/lib/haptics/HapticsEngine.ts
 import { hasVibration, stopVibration, vibrate } from "./HapticsPlatform";
 import {
   getIntensityParams,
@@ -7,18 +6,17 @@ import {
 } from "./HapticsPatterns";
 import { onHapticsPrefsChanged, readHapticsPrefs } from "./HapticsSettings";
 import { WakeLockManager } from "./WakeLock";
-import type {
-  BreathPhase,
-  HapticsIntensity,
-  HapticsMode,
-  HapticsPrefs,
-} from "./types";
+import type { HapticsIntensity, HapticsMode, HapticsPrefs } from "./types";
 
 type TimerId = number;
 
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
+
+type HoldBottomRange = { minMs: number; maxMs: number };
+
+type BreathPreset = "standard" | "release" | "deep-calm" | "stillness";
 
 export class HapticsEngine {
   private mounted = false;
@@ -31,7 +29,15 @@ export class HapticsEngine {
   private voiceActive = false; // BR can tell us when voice guide is toggled
   private premiumBreathEnabled = false; // set from BR (isPro)
 
-  private cycleSeconds = 10; // will be set by BR
+  // Phase durations (source of truth for scheduling)
+  private inhaleMs = 2800;
+  private holdTopMs = 1200;
+  private exhaleMs = 3200;
+  private holdBottom: number | HoldBottomRange = 2600;
+
+  // Best-effort preset detection from phase durations
+  private preset: BreathPreset = "standard";
+
   private loopTimer: TimerId | null = null;
 
   // ✅ Phase timers (so we can cancel them on restart/disable)
@@ -75,7 +81,7 @@ export class HapticsEngine {
 
   /**
    * Pro gate: breath-follow scheduling should only run in Pro.
-   * (UI feedback like tick/wosh can still run if you want – that’s controlled by prefs.enabled)
+   * (UI feedback like tick/wosh can still run – controlled by prefs.enabled)
    */
   setPremiumEnabledForBreath(isPro: boolean) {
     this.premiumBreathEnabled = !!isPro;
@@ -92,12 +98,52 @@ export class HapticsEngine {
   }
 
   /**
-   * BR calls this on slider change / seconds change.
+   * Backward-compatible: Standard slider still calls this.
+   * Keeps old ratios (0.28/0.12/0.32 + rest).
    */
   setCycleSeconds(seconds: number) {
-    this.cycleSeconds = clamp(seconds, 4, 30);
+    const s = clamp(seconds, 4, 30);
+    const cycleMs = Math.round(s * 1000);
+
+    const inhaleMs = Math.round(s * 0.28 * 1000);
+    const holdTopMs = Math.round(s * 0.12 * 1000);
+    const exhaleMs = Math.round(s * 0.32 * 1000);
+    const holdBottomMs = Math.max(0, cycleMs - inhaleMs - holdTopMs - exhaleMs);
+
+    this.setPhaseDurations({
+      inhaleMs,
+      holdTopMs,
+      exhaleMs,
+      holdBottomMs,
+    });
+  }
+
+  /**
+   * ⭐ New: Explicit phase durations (used by Release / Deep calm / Stillness)
+   * holdBottom can be fixed (number) OR a range for subtle variation per cycle.
+   */
+  setPhaseDurations(d: {
+    inhaleMs: number;
+    holdTopMs: number;
+    exhaleMs: number;
+    holdBottomMs: number | HoldBottomRange;
+  }) {
+    this.inhaleMs = clamp(Math.round(d.inhaleMs), 0, 120000);
+    this.holdTopMs = clamp(Math.round(d.holdTopMs), 0, 120000);
+    this.exhaleMs = clamp(Math.round(d.exhaleMs), 0, 120000);
+
+    if (typeof d.holdBottomMs === "number") {
+      this.holdBottom = clamp(Math.round(d.holdBottomMs), 0, 120000);
+    } else {
+      const minMs = clamp(Math.round(d.holdBottomMs.minMs), 0, 120000);
+      const maxMs = clamp(Math.round(d.holdBottomMs.maxMs), minMs, 120000);
+      this.holdBottom = { minMs, maxMs };
+    }
+
+    // --- preset detection (best-effort, local only) ---
+    this.preset = this.detectPreset();
+
     if (this.mode !== "off") {
-      // restart loop so it instantly matches slider
       this.stopBreathLoop();
       this.startBreathLoop();
     }
@@ -130,80 +176,71 @@ export class HapticsEngine {
     this.vibratePattern([12, 14, 18, 16, 26]);
   }
 
-
-
-/**
- * Small confirmation pulse when enabling haptics.
- * Soft double tap that respects current intensity.
- */
-confirmEnabled() {
-  if (!this.canVibrate()) return;
-
-  const { mult, maxPulse } = getIntensityParams(this.prefs.intensity);
-
-  const p1 = scalePulseMs(14, mult, maxPulse);
-  const p2 = scalePulseMs(10, mult, maxPulse);
-
-  vibrate([p1, 70, p2]);
-}
-
-/**
- * Small confirmation when breath-follow vibration is enabled.
- * Feels like a mini inhale cue.
- */
-confirmBreathEnabled() {
-  if (!this.canVibrate()) return;
-
-  const { mult, maxPulse } = getIntensityParams(this.prefs.intensity);
-
-  const p1 = scalePulseMs(10, mult, maxPulse);
-  const p2 = scalePulseMs(16, mult, maxPulse);
-  const p3 = scalePulseMs(22, mult, maxPulse);
-
-  // gentle ramp up (mini inhale)
-  vibrate([p1, 60, p2, 60, p3]);
-}
-
-  
   /**
- * Intensity preview for settings screen.
- * Runs a 2s demo pulse pattern.
- */
-previewIntensity(intensity: HapticsIntensity) {
-  if (!this.canVibrate()) return;
+   * Small confirmation pulse when enabling haptics.
+   * Soft double tap that respects current intensity.
+   */
+  confirmEnabled() {
+    if (!this.canVibrate()) return;
 
-  const { mult, maxPulse } = getIntensityParams(intensity);
+    const { mult, maxPulse } = getIntensityParams(this.prefs.intensity);
 
-  const duration = 2000;
-  const pattern: number[] = [];
+    const p1 = scalePulseMs(14, mult, maxPulse);
+    const p2 = scalePulseMs(10, mult, maxPulse);
 
-  // Create a calm repeating pulse for preview
-  const basePulse =
-    intensity === "low" ? 10 :
-    intensity === "high" ? 22 :
-    16;
-
-  const basePause =
-    intensity === "low" ? 180 :
-    intensity === "high" ? 90 :
-    130;
-
-  let spent = 0;
-
-  while (spent < duration) {
-    const pulse = scalePulseMs(basePulse, mult, maxPulse);
-    pattern.push(pulse);
-    spent += pulse;
-
-    if (spent + basePause > duration) break;
-
-    pattern.push(basePause);
-    spent += basePause;
+    vibrate([p1, 70, p2]);
   }
 
-  vibrate(pattern);
-}
+  /**
+   * Small confirmation when breath-follow vibration is enabled.
+   * Feels like a mini inhale cue.
+   */
+  confirmBreathEnabled() {
+    if (!this.canVibrate()) return;
 
+    const { mult, maxPulse } = getIntensityParams(this.prefs.intensity);
+
+    const p1 = scalePulseMs(10, mult, maxPulse);
+    const p2 = scalePulseMs(16, mult, maxPulse);
+    const p3 = scalePulseMs(22, mult, maxPulse);
+
+    // gentle ramp up (mini inhale)
+    vibrate([p1, 60, p2, 60, p3]);
+  }
+
+  /**
+   * Intensity preview for settings screen.
+   * Runs a 2s demo pulse pattern.
+   */
+  previewIntensity(intensity: HapticsIntensity) {
+    if (!this.canVibrate()) return;
+
+    const { mult, maxPulse } = getIntensityParams(intensity);
+
+    const duration = 2000;
+    const pattern: number[] = [];
+
+    const basePulse =
+      intensity === "low" ? 10 : intensity === "high" ? 22 : 16;
+
+    const basePause =
+      intensity === "low" ? 180 : intensity === "high" ? 90 : 130;
+
+    let spent = 0;
+
+    while (spent < duration) {
+      const pulse = scalePulseMs(basePulse, mult, maxPulse);
+      pattern.push(pulse);
+      spent += pulse;
+
+      if (spent + basePause > duration) break;
+
+      pattern.push(basePause);
+      spent += basePause;
+    }
+
+    vibrate(pattern);
+  }
 
   // ------------------------------------------------------------
   // Internals
@@ -237,7 +274,6 @@ previewIntensity(intensity: HapticsIntensity) {
     const nextMode = this.computeMode();
 
     if (nextMode === this.mode) {
-      // Still ensure wake lock state is correct
       if (this.mode === "off") this.wakeLock.setEnabled(false);
       else this.wakeLock.setEnabled(true);
       return;
@@ -252,7 +288,6 @@ previewIntensity(intensity: HapticsIntensity) {
       return;
     }
 
-    // breath/voice mode
     this.wakeLock.setEnabled(true);
     this.wakeLock.request(); // best-effort
 
@@ -267,8 +302,8 @@ previewIntensity(intensity: HapticsIntensity) {
     if (!hasVibration()) return "off";
 
     // Breath-follow is premium-gated + user-gated
-    // NOTE: expects prefs.breathEnabled to exist (your settings layer controls this)
-    const canRunBreath = (this.prefs as any).breathEnabled && this.premiumBreathEnabled;
+    const canRunBreath =
+      (this.prefs as any).breathEnabled && this.premiumBreathEnabled;
 
     if (!canRunBreath) {
       return "off";
@@ -282,15 +317,6 @@ previewIntensity(intensity: HapticsIntensity) {
     return "breath";
   }
 
-
-/**
- * Phase timers must always be cleared on restart.
- * Otherwise slider changes can cause overlapping vibration phases.
- *
- * This prevents "vibration stacking".
- */
-
-  
   private clearPhaseTimers() {
     if (!this.phaseTimers.length) return;
     for (const id of this.phaseTimers) {
@@ -304,45 +330,110 @@ previewIntensity(intensity: HapticsIntensity) {
       window.clearTimeout(this.loopTimer);
       this.loopTimer = null;
     }
-    // ✅ also cancel any scheduled phase vibrations
     this.clearPhaseTimers();
   }
 
+  private sampleHoldBottomMs(): number {
+    if (typeof this.holdBottom === "number") return this.holdBottom;
 
-/**
- * IMPORTANT:
- * Breath loop mirrors the visual + voice timing (0.28 / 0.12 / 0.32 + rest).
- *
- * Do NOT change ratios here unless you also change:
- * - Breathing circle animation
- * - Voice timing schedule
- *
- * Haptics must stay phase-locked with visual + audio.
- */
+    const { minMs, maxMs } = this.holdBottom;
+
+    // subtle variation per cycle (stillness)
+    if (maxMs <= minMs) return minMs;
+
+    const span = maxMs - minMs;
+    const r = Math.random();
+    return minMs + Math.round(span * r);
+  }
+
+  private detectPreset(): BreathPreset {
+    const i = this.inhaleMs;
+    const ht = this.holdTopMs;
+    const e = this.exhaleMs;
+
+    // Presets all have holdTop = 0 in your design
+    if (ht !== 0) return "standard";
+
+    if (i === 6000 && e === 8000) return "release";
+    if (i === 8000 && e === 14000) return "deep-calm";
+    if (i === 10000 && e === 20000) return "stillness";
+
+    return "standard";
+  }
 
   private startBreathLoop() {
     if (!this.mounted) return;
     if (this.mode === "off") return;
     if (!this.canVibrate()) return;
 
-    // Match your existing math (voice + CSS)
-    const cycleMs = Math.round(this.cycleSeconds * 1000);
-    const inhaleMs = Math.round(this.cycleSeconds * 0.28 * 1000);
-    const holdTopMs = Math.round(this.cycleSeconds * 0.12 * 1000);
-    const exhaleMs = Math.round(this.cycleSeconds * 0.32 * 1000);
-
-    // ✅ Bottom rest (this is where we add “waiting pulses”)
-    const holdBottomMs = Math.max(0, cycleMs - inhaleMs - holdTopMs - exhaleMs);
-
-    const firePhase = (phase: any, durationMs: number) => {
+    const firePhase = (
+      phase: "in" | "out" | "holdTop" | "holdBottom",
+      durationMs: number,
+      opts?: { bottomCalm?: boolean }
+    ) => {
       if (!this.canVibrate()) return;
 
+      // TS compat: patterns accept legacy "hold" for holdTop
+      const phaseForPatterns =
+        phase === "holdTop" ? ("hold" as const) : (phase as any);
+
       const spec = getPhasePulseSpec(
-        phase,
+        phaseForPatterns as any,
         this.prefs.intensity as HapticsIntensity,
         this.mode === "voice" ? "voice" : "breath",
-        durationMs
+        durationMs,
+        {
+          ...opts,
+          preset: this.preset,
+        } as any
       );
+
+      // ✅ heartbeat events (holdBottom only) - use beatIndexes if provided
+      if (phase === "holdBottom" && typeof window !== "undefined") {
+        try {
+          const beats =
+            Array.isArray((spec as any).beatIndexes) &&
+            (spec as any).beatIndexes.length
+              ? ((spec as any).beatIndexes as number[])
+              : null;
+
+          if (beats) {
+            for (const beatIdx of beats) {
+              let t = 0;
+              for (let i = 0; i < beatIdx; i++) {
+                t += Math.max(0, Number(spec.pattern[i] ?? 0));
+              }
+
+              this.phaseTimers.push(
+                window.setTimeout(() => {
+                  try {
+                    window.dispatchEvent(new CustomEvent("pause-br-heartbeat"));
+                  } catch {}
+                }, Math.max(0, t))
+              );
+            }
+          } else {
+            // fallback: pulses at even indexes
+            let t = 0;
+            for (let i = 0; i < spec.pattern.length; i += 2) {
+              const pulseMs = Number(spec.pattern[i] ?? 0);
+              const pauseMs = Number(spec.pattern[i + 1] ?? 0);
+
+              this.phaseTimers.push(
+                window.setTimeout(() => {
+                  try {
+                    window.dispatchEvent(new CustomEvent("pause-br-heartbeat"));
+                  } catch {}
+                }, Math.max(0, t))
+              );
+
+              t += Math.max(0, pulseMs) + Math.max(0, pauseMs);
+            }
+          }
+        } catch {
+          // ignore – haptics should never crash
+        }
+      }
 
       vibrate(spec.pattern);
     };
@@ -352,16 +443,22 @@ previewIntensity(intensity: HapticsIntensity) {
       this.recomputeModeAndApply();
       if (this.mode === "off") return;
 
-      // Make sure previous scheduled timers are cleared (important on slider change)
       this.clearPhaseTimers();
+
+      const inhaleMs = Math.max(0, this.inhaleMs);
+      const holdTopMs = Math.max(0, this.holdTopMs);
+      const exhaleMs = Math.max(0, this.exhaleMs);
+      const holdBottomMs = Math.max(0, this.sampleHoldBottomMs());
 
       // 1) INHALE
       firePhase("in", inhaleMs);
 
-      // 2) HOLD TOP (ticks early + silence before exhale -> "opphold"-følelse)
-      this.phaseTimers.push(
-        window.setTimeout(() => firePhase("holdTop", holdTopMs), inhaleMs)
-      );
+      // 2) HOLD TOP
+      if (holdTopMs > 0) {
+        this.phaseTimers.push(
+          window.setTimeout(() => firePhase("holdTop", holdTopMs), inhaleMs)
+        );
+      }
 
       // 3) EXHALE
       this.phaseTimers.push(
@@ -371,24 +468,20 @@ previewIntensity(intensity: HapticsIntensity) {
         )
       );
 
-      // 4) HOLD BOTTOM (ventepulser mellom utpust og neste innpust)
+      // 4) HOLD BOTTOM
       if (holdBottomMs > 0) {
         this.phaseTimers.push(
           window.setTimeout(
-            () => firePhase("holdBottom", holdBottomMs),
+            () => firePhase("holdBottom", holdBottomMs, { bottomCalm: true }),
             inhaleMs + holdTopMs + exhaleMs
           )
         );
       }
 
-      // next cycle
-      this.loopTimer = window.setTimeout(
-        run,
-        inhaleMs + holdTopMs + exhaleMs + holdBottomMs
-      );
+      const cycle = inhaleMs + holdTopMs + exhaleMs + holdBottomMs;
+      this.loopTimer = window.setTimeout(run, Math.max(120, cycle));
     };
 
-    // start quickly
     this.loopTimer = window.setTimeout(run, 60);
   }
 }
