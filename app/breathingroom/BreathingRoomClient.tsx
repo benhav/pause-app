@@ -21,6 +21,9 @@ import { PREFS_KEYS } from "../lib/appPrefs";
 
 import { getHaptics } from "../lib/haptics";
 
+import BreathingRoomPulse from "../components/pulse/BreathingRoomPulse";
+
+
 // ✅ Same key as HomeClient
 const LOCALE_KEY = "pause-locale";
 
@@ -72,6 +75,49 @@ const DEFAULT_BR_PAUSE_PREFS: BrPausePrefs = {
   hideSpeedBar: false,
   hideVoiceToggle: false,
 };
+
+const BREATH_MIN_SCALE = 0.84;
+const BREATH_MAX_SCALE = 1.12;
+
+function clamp01(v: number) {
+  return Math.max(0, Math.min(1, v));
+}
+
+function easeInOutSine(t: number) {
+  return 0.5 - 0.5 * Math.cos(Math.PI * clamp01(t));
+}
+
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+
+function getPulseBreathScaleAtMs(
+  elapsedMs: number,
+  inhaleMs: number,
+  holdTopMs: number,
+  exhaleMs: number,
+  holdBottomMs: number
+) {
+  const cycleMs = Math.max(1, inhaleMs + holdTopMs + exhaleMs + holdBottomMs);
+  const phaseMs = ((elapsedMs % cycleMs) + cycleMs) % cycleMs;
+
+  if (phaseMs < inhaleMs) {
+    const inhaleT = inhaleMs > 0 ? phaseMs / inhaleMs : 1;
+    return lerp(BREATH_MIN_SCALE, BREATH_MAX_SCALE, easeInOutSine(inhaleT));
+  }
+
+  if (phaseMs < inhaleMs + holdTopMs) {
+    return BREATH_MAX_SCALE;
+  }
+
+  if (phaseMs < inhaleMs + holdTopMs + exhaleMs) {
+    const exhalePhaseMs = phaseMs - inhaleMs - holdTopMs;
+    const exhaleT = exhaleMs > 0 ? exhalePhaseMs / exhaleMs : 1;
+    return lerp(BREATH_MAX_SCALE, BREATH_MIN_SCALE, easeInOutSine(exhaleT));
+  }
+
+  return BREATH_MIN_SCALE;
+}
 
 function getVoiceText(locale: Locale, phase: VoicePhase) {
   if (locale === "no") {
@@ -316,10 +362,22 @@ export default function BreathingRoomClient() {
 
   // ✅ Lightpulse (visual heartbeat flashes)
   const [pulseNonce, setPulseNonce] = useState(0);
+
+  // ✅ PULSE bridge token (for PulseCore)
+  const [pulseBeatToken, setPulseBeatToken] = useState(0);
+  const pulseBreathScaleRef = useRef(BREATH_MIN_SCALE);
+  const pulseBreathCycleStartRef = useRef(0);
+
   const triggerPulse = useCallback(() => {
     if (!visualPulseEnabled) return;
+
+    // BR overlay pulse
     setPulseNonce((n) => n + 1);
+
+    // Pulse (3D) heartbeat kick
+    setPulseBeatToken((n) => n + 1);
   }, [visualPulseEnabled]);
+
 
   // --- SoftBreath (WebAudio) ---
   const breathRef = useRef<SoftBreath | null>(null);
@@ -346,6 +404,10 @@ export default function BreathingRoomClient() {
   // --- Short hint (2s) after entering pause-mode ---
   const [showHoldHint, setShowHoldHint] = useState(false);
   const hintTimerRef = useRef<number | null>(null);
+
+  // --- Pulse spin -> open ThemeSheet (temporary bridge) ---
+  const lastSpinDegRef = useRef(0);
+  const spinOpenCooldownRef = useRef(0);
 
   useEffect(() => setMounted(true), []);
 
@@ -583,6 +645,16 @@ export default function BreathingRoomClient() {
 
   const t = useMemo(() => UI_TEXT[locale], [locale]);
 
+  // ✅ Puls Memo - NY
+  const pulseProps = useMemo(
+    () => ({
+      beatToken: pulseBeatToken,
+      disabled: false,
+      variant: "glass" as const,
+    }),
+    [pulseBeatToken]
+  );
+
   // ✅ Effective day/night for BR:
   const effectiveBrIsDark = useMemo(() => {
     if (brMode === "follow") return appIsDark;
@@ -803,6 +875,42 @@ export default function BreathingRoomClient() {
       animation: `${keyframesName} ${Math.max(0.4, totalVisualMs / 1000)}s ease-in-out infinite`,
     };
   }, [keyframesName, totalVisualMs]);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    pulseBreathScaleRef.current = BREATH_MIN_SCALE;
+    pulseBreathCycleStartRef.current = performance.now();
+
+    let raf = 0;
+
+    const tick = () => {
+      const elapsedMs = performance.now() - pulseBreathCycleStartRef.current;
+
+      pulseBreathScaleRef.current = getPulseBreathScaleAtMs(
+        elapsedMs,
+        phase.inhaleMs,
+        phase.holdTopMs,
+        phase.exhaleMs,
+        visualHoldBottomMs
+      );
+
+      raf = window.requestAnimationFrame(tick);
+    };
+
+    tick();
+
+    return () => {
+      window.cancelAnimationFrame(raf);
+    };
+  }, [
+    mounted,
+    animNonce,
+    phase.inhaleMs,
+    phase.holdTopMs,
+    phase.exhaleMs,
+    visualHoldBottomMs,
+  ]);
 
   // ------------------------------------------------------------
   // ✅ PULSE LOGIC
@@ -1276,6 +1384,7 @@ export default function BreathingRoomClient() {
         ].join(" ")}
       >
         <div
+          data-br-root
           className={[
             "relative w-full h-[100svh] rounded-none p-6",
             "md:p-8",
@@ -1511,109 +1620,95 @@ export default function BreathingRoomClient() {
                 <div className="w-full" />
               )}
             </div>
-
-            {/* MIDDLE */}
+            {/* MIDDLE The home of PULS */}
             <div className="flex items-center justify-center">
-              <div
-                key={animNonce}
-                className={[
-                  "relative rounded-full overflow-hidden will-change-transform",
-                  "w-[55vmin] h-[55vmin] max-w-[320px] max-h-[320px]",
-                  "md:w-[44vmin] md:h-[44vmin] md:max-w-[420px] md:max-h-[420px]",
-                ].join(" ")}
-                style={{
-                  ...circleStyle,
-                  background: "var(--breath-fill)",
-                  boxShadow:
-                    "var(--breath-shadow), inset 0 2px 10px rgba(255,255,255,0.12)",
-                }}
-                aria-label={locale === "no" ? "Pusteindikator" : "Breathing indicator"}
-              >
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    zIndex: 1,
-                    borderRadius: "9999px",
-                    backgroundImage:
-                      "radial-gradient(circle at 30% 25%, rgba(255,255,255,0.40), rgba(255,255,255,0) 52%), radial-gradient(circle at 70% 80%, rgba(0,0,0,0.10), rgba(0,0,0,0) 55%), linear-gradient(to bottom, rgba(255,255,255,0.10), rgba(255,255,255,0))",
-                    mixBlendMode: "overlay",
-                    opacity: 0.75,
-                  }}
-                />
+              {(() => {
+                const pulseSize =
+                  typeof window !== "undefined"
+                    ? Math.min(
+                      window.innerWidth >= 768 ? 470 : 356,
+                      Math.round(
+                        Math.min(window.innerWidth, window.innerHeight) *
+                        (window.innerWidth >= 768 ? 0.49 : 0.61)
+                      )
+                    )
+                    : 240;
 
-                {/* ✅ pulse overlay (conditional) */}
-                {visualPulseEnabled && (
+                return (
                   <div
-                    key={`pulse-${pulseNonce}`}
-                    className="absolute inset-0 pointer-events-none"
-                    data-br-pulse
+                    key={animNonce}
+                    className="relative"
                     style={{
-                      zIndex: 3,
-                      borderRadius: "9999px",
-                      backgroundImage:
-                        "radial-gradient(circle at 50% 22%, rgba(255,255,255,0.55), transparent 58%)," +
-                        "radial-gradient(circle at 50% 78%, rgba(255,255,255,0.38), transparent 62%)",
-                      mixBlendMode: "overlay",
-                      opacity: 0,
-                      animation: `${keyframesName}_flash 260ms ease-out`,
+                      width: pulseSize,
+                      height: pulseSize,
+                      touchAction: "none",
+                      marginInline: "auto",
+                      willChange: "transform",
                     }}
-                  />
-                )}
-
-                <div
-                  className="absolute inset-0 rounded-full pointer-events-none overflow-hidden"
-                  style={{ zIndex: 2 }}
-                >
-                  <div
-                    className="absolute inset-[-15%]"
-                    style={{
-                      backgroundImage:
-                        "radial-gradient(circle at 35% 30%, rgba(255,255,255,0.45), rgba(255,255,255,0) 60%)",
-                      animation: "breathLightDrift 26s ease-in-out infinite",
-                      mixBlendMode: "overlay",
-                      opacity: 0.55,
-                    }}
-                  />
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      boxShadow: "inset 0 0 80px rgba(0,0,0,0.08)",
-                      borderRadius: "9999px",
-                      opacity: 0.95,
-                    }}
-                  />
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      borderRadius: "9999px",
-                      boxShadow:
-                        "inset 0 1px 0 rgba(255,255,255,0.20), inset 0 -1px 0 rgba(0,0,0,0.06)",
-                      opacity: 0.9,
-                    }}
-                  />
-                </div>
-
-                {showText && (
-                  <div
-                    className="absolute inset-0 flex items-center justify-center"
-                    style={{ zIndex: 5 }}
+                    aria-label={locale === "no" ? "Pusteindikator" : "Breathing indicator"}
                   >
                     <div
-                      className={[
-                        "italic text-[var(--muted)] select-none",
-                        "whitespace-nowrap",
-                        "text-[clamp(12px,3.2vmin,18px)] md:text-[clamp(12px,2.2vmin,20px)]",
-                      ].join(" ")}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        display: "grid",
+                        placeItems: "center",
+                        transformOrigin: "50% 50%",
+                        willChange: "transform",
+                      }}
                     >
-                      {circleCue}
+                      <BreathingRoomPulse
+                        size={pulseSize}
+                        className=""
+                        disabled={false}
+                        beatToken={pulseBeatToken}
+                        breathScaleRef={pulseBreathScaleRef}
+                        onSwipeUp={() => {
+                          endHold();
+                          setShowHoldHint(false);
+                          setBrThemeOpen(false);
+                          router.push("/breathingroom/settings");
+                        }}
+                        onSwipeDown={() => {
+                          endHold();
+                          toggleBrDayNight();
+                        }}
+                        onSpin={(deg) => {
+                          lastSpinDegRef.current = deg;
+                        }}
+                        onSpinCommit={(deg) => {
+                          const now = Date.now();
+                          if (now < spinOpenCooldownRef.current) return;
+                          if (pauseMode) return;
+
+                          const a = lastSpinDegRef.current;
+                          const b = deg;
+                          let delta = ((b - a + 540) % 360) - 180;
+                          delta = Math.abs(delta);
+
+                          const THRESH = 18;
+                          if (delta < THRESH) return;
+
+                          spinOpenCooldownRef.current = now + 800;
+                          endHold();
+                          setShowHoldHint(false);
+                          setBrThemeOpen(true);
+                        }}
+                      />
                     </div>
                   </div>
-                )}
-              </div>
+                );
+              })()}
             </div>
 
             {/* BOTTOM */}
-            <div className="flex flex-col items-center justify-start pt-6 md:pt-7">
+            <div
+              className="flex flex-col items-center justify-start pt-6 md:pt-7"
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerMove={(e) => e.stopPropagation()}
+              onPointerUp={(e) => e.stopPropagation()}
+              onPointerCancel={(e) => e.stopPropagation()}
+            >
               {showSpeedBar || showVoiceToggle || showMenuButtons ? (
                 <div className="w-full max-w-[360px] px-2 md:max-w-[520px] md:px-6">
                   {showSpeedBar && (
@@ -1668,6 +1763,15 @@ export default function BreathingRoomClient() {
                     </>
                   )}
 
+                  {/* ✅ Gesture hint (klar for Puls) */}
+                  {!pauseMode && (
+                    <div className="mt-4 text-center text-[11px] md:text-xs text-[var(--muted)] select-none">
+                      {locale === "no"
+                        ? "Tips: Snurr Puls for tema • Sveip opp for innstillinger • Sveip ned for dag/natt"
+                        : "Tip: Spin Pulse for themes • Swipe up for settings • Swipe down for day/night"}
+                    </div>
+                  )}
+
                   {(showVoiceToggle || showMenuButtons) && (
                     <div className="mt-6 flex flex-col items-center gap-3 md:gap-4">
                       {showVoiceToggle && (
@@ -1682,8 +1786,7 @@ export default function BreathingRoomClient() {
                             } catch { }
 
                             try {
-                              if (!breathRef.current)
-                                breathRef.current = new SoftBreath();
+                              if (!breathRef.current) breathRef.current = new SoftBreath();
                               await breathRef.current.init();
                               breathRef.current.setVolume(0.18);
                             } catch { }
@@ -1693,21 +1796,15 @@ export default function BreathingRoomClient() {
                             if (voiceEnabled) stopSoftBreath();
                             setVoiceEnabled((v) => !v);
                           }}
-                          aria-label={
-                            locale === "no" ? "Stemmeguiding" : "Voice guidance"
-                          }
+                          aria-label={locale === "no" ? "Stemmeguiding" : "Voice guidance"}
                           className={[
                             smallPill,
                             !isPro ? "opacity-50 cursor-not-allowed" : "",
                           ].join(" ")}
                           onPointerDown={(e) => e.stopPropagation()}
                         >
-                          <span aria-hidden="true">
-                            {voiceEnabled && isPro ? "🔊" : "🔇"}
-                          </span>
-                          <span>
-                            {locale === "no" ? "Stemmeguiding" : "Voice guidance"}
-                          </span>
+                          <span aria-hidden="true">{voiceEnabled && isPro ? "🔊" : "🔇"}</span>
+                          <span>{locale === "no" ? "Stemmeguiding" : "Voice guidance"}</span>
                         </button>
                       )}
 
@@ -1751,6 +1848,7 @@ export default function BreathingRoomClient() {
               )}
             </div>
 
+
             {showBackButton && (
               <div className="relative mt-6 md:mt-10" style={{ zIndex: 1 }}>
                 <button
@@ -1775,7 +1873,13 @@ export default function BreathingRoomClient() {
                   className="absolute inset-0 bg-black/35"
                 />
 
-                <div className={["absolute inset-x-0 bottom-0", "sm:inset-0 sm:flex sm:items-center sm:justify-center", "p-0 sm:p-6"].join(" ")}>
+                <div
+                  className={[
+                    "absolute inset-x-0 bottom-0",
+                    "sm:inset-0 sm:flex sm:items-center sm:justify-center",
+                    "p-0 sm:p-6",
+                  ].join(" ")}
+                >
                   <div
                     className={[
                       "relative w-full",
@@ -1814,8 +1918,12 @@ export default function BreathingRoomClient() {
                           className="relative rounded-full h-8 w-[72px] md:h-10 md:w-[84px] p-1 border border-[color:var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]"
                           onPointerDown={(e) => e.stopPropagation()}
                         >
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] opacity-55">☀️</span>
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] opacity-55">🌙</span>
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] opacity-55">
+                            ☀️
+                          </span>
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] opacity-55">
+                            🌙
+                          </span>
                           <span
                             className={[
                               "block rounded-full bg-[var(--app-bg)] shadow-sm",
@@ -1887,7 +1995,9 @@ export default function BreathingRoomClient() {
                             {locale === "no" ? "Følg appens tema" : "Follow app theme"}
                           </div>
                           <div className="mt-1 text-xs md:text-sm text-[var(--muted)]">
-                            {locale === "no" ? `App-tema: ${appThemeLabel}` : `App theme: ${appThemeLabel}`}
+                            {locale === "no"
+                              ? `App-tema: ${appThemeLabel}`
+                              : `App theme: ${appThemeLabel}`}
                           </div>
                         </button>
 
@@ -1957,7 +2067,7 @@ export default function BreathingRoomClient() {
                           <div className="mt-3 text-center text-xs md:text-sm text-[var(--muted)]">
                             {locale === "no"
                               ? "Pusterom-tema er tilgjengelig i Pro-versjonen."
-                              : "Breathing room theme is available in the Pro version."}
+                              : "Breathing room theme is available in the pro version."}
                           </div>
                         )}
                       </div>
