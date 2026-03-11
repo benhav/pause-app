@@ -65,15 +65,17 @@ export function applySkinToHtml(s: ThemeSkin) {
 }
 
 /**
- * Setter <html class="dark"> når mode er "dark".
- * (Vi fjerner/legger IKKE til andre klasser enn "dark" – det holder for Tailwind.)
+ * Holder <html> i sync med eksplisitt light/dark-modus.
+ * Vi bruker begge klassene fordi theme-CSS for bakgrunnsbilder
+ * og flere skins forventer `html.light[...]` og `html.dark[...]`.
  */
 export function applyThemeModeToHtml(mode: ThemeMode) {
   if (typeof document === "undefined") return;
   const el = document.documentElement;
 
-  if (mode === "dark") el.classList.add("dark");
-  else el.classList.remove("dark");
+  el.classList.remove("dark");
+  el.classList.remove("light");
+  el.classList.add(mode);
 }
 
 /**

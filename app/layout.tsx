@@ -43,7 +43,7 @@ export default function RootLayout({
 
   // BreathingRoom keys (separate fra app prefs)
   const BR_MODE_KEY = "pause-br-mode"; // "follow" | "light" | "dark"
-  const BR_SKIN_KEY = "pause-br-skin"; // ThemeSkin (classic|floating|...|nightpro)
+  const BR_SKIN_KEY = "pause-breathingroom-skin"; // ThemeSkin (classic|floating|...|nightpro)
 
   const themeBootstrap = `
 (function () {

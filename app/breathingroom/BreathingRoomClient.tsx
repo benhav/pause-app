@@ -17,7 +17,7 @@ import { SoftBreath } from "../lib/softBreath";
 import { useAppPrefs } from "../AppProviders";
 import Title from "../components/Title";
 import type { ThemeSkin } from "../lib/appPrefs";
-import { PREFS_KEYS } from "../lib/appPrefs";
+import { PREFS_KEYS, applyThemeModeToHtml } from "../lib/appPrefs";
 
 import { getHaptics } from "../lib/haptics";
 
@@ -346,7 +346,6 @@ export default function BreathingRoomClient() {
     skin: appSkin,
     mode: appMode,
     isDark: appIsDark,
-    setMode,
 
     // BR pro override (stored via AppProviders / PREFS_KEYS.breathingRoomSkin)
     breathingRoomSkin,
@@ -690,17 +689,19 @@ export default function BreathingRoomClient() {
   useEffect(() => {
     if (!mounted) return;
 
-    if (brMode === "follow") {
-      setMode(enteredModeRef.current);
-      return;
-    }
+    const modeToApply =
+      brMode === "follow"
+        ? enteredModeRef.current
+        : brMode === "dark"
+          ? "dark"
+          : "light";
 
-    setMode(brMode === "dark" ? "dark" : "light");
+    applyThemeModeToHtml(modeToApply);
 
     return () => {
-      setMode(enteredModeRef.current);
+      applyThemeModeToHtml(enteredModeRef.current);
     };
-  }, [mounted, brMode, setMode]);
+  }, [mounted, brMode]);
 
   // ------------------------------------------------------------
   // ✅ PHASE DURATIONS (single source of truth)
