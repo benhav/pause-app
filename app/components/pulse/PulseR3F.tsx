@@ -1,6 +1,5 @@
 "use client";
 
-// app/components/pulse/PulseR3F.tsx
 import React, { useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
@@ -68,7 +67,7 @@ export default function PulseR3F({
       {...bridge.handlers}
     >
       <Canvas
-        camera={{ position: [0, 0, 3.24], fov: 33, near: 0.1, far: 20 }}
+        camera={{ position: [0, 0, 3.4], fov: 31, near: 0.1, far: 20 }}
         dpr={[1.2, 2.2]}
         gl={{
           antialias: true,
@@ -88,30 +87,37 @@ export default function PulseR3F({
           gl.setClearColor(0x000000, 0);
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 1.12;
+          gl.toneMappingExposure = 0.9;
           scene.background = null;
         }}
       >
         <Environment resolution={256}>
           <Lightformer
-            intensity={2.35}
-            position={[3.1, 2.7, 2.5]}
-            rotation={[0, -0.64, 0]}
-            scale={[9, 9, 1]}
-            color="#f6fbff"
+            intensity={1.55}
+            position={[3.6, 2.1, 2.9]}
+            rotation={[0, -0.72, 0]}
+            scale={[10, 10, 1]}
+            color="#ffffff"
           />
           <Lightformer
-            intensity={1.1}
-            position={[-3.3, -2.0, 1.6]}
-            rotation={[0, 0.54, 0]}
-            scale={[7.6, 7.6, 1]}
-            color="#dbe9ff"
+            intensity={0.62}
+            position={[-3.2, -1.8, 2.1]}
+            rotation={[0, 0.58, 0]}
+            scale={[8.2, 8.2, 1]}
+            color="#dcecff"
           />
           <Lightformer
-            intensity={0.6}
-            position={[0, 0.9, -3.4]}
-            scale={[10, 6, 1]}
-            color="#cfe0ff"
+            intensity={0.28}
+            position={[0.1, 1.0, -3.6]}
+            scale={[10, 6.4, 1]}
+            color="#c5dcff"
+          />
+          <Lightformer
+            intensity={0.12}
+            position={[-0.8, -3.2, 1.5]}
+            rotation={[Math.PI / 2, 0, 0]}
+            scale={[5.2, 5.2, 1]}
+            color="#9ec8e2"
           />
         </Environment>
 
@@ -119,9 +125,9 @@ export default function PulseR3F({
 
         <EffectComposer multisampling={8}>
           <Bloom
-            intensity={0.08}
-            luminanceThreshold={0.82}
-            luminanceSmoothing={0.22}
+            intensity={0.04}
+            luminanceThreshold={0.92}
+            luminanceSmoothing={0.12}
             mipmapBlur
           />
         </EffectComposer>
@@ -129,4 +135,9 @@ export default function PulseR3F({
     </div>
   );
 }
+
+
+
+
+
 
