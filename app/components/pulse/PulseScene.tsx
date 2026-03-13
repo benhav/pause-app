@@ -148,6 +148,43 @@ function makeSuspendedParticleField(count: number, options: ParticleFieldOptions
   return { base, size, alpha, phase, sway };
 }
 
+function makeOrbBubbleField(count: number) {
+  const base = new Float32Array(count * 3);
+  const size = new Float32Array(count);
+  const alpha = new Float32Array(count);
+  const phase = new Float32Array(count);
+  const sway = new Float32Array(count);
+
+  for (let i = 0; i < count; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const u = Math.random() * 2 - 1;
+    const sinPhi = Math.sqrt(1 - u * u);
+    const radius = THREE.MathUtils.lerp(0.46, 0.8, Math.pow(Math.random(), 0.56));
+
+    let x = radius * sinPhi * Math.cos(theta);
+    const y = radius * u * 0.92;
+    let z = radius * sinPhi * Math.sin(theta);
+
+    // Keep the field outside the core while biasing the initial seed slightly behind it.
+    if (Math.abs(x) < 0.24 && Math.abs(y) < 0.34 && z > -0.22) {
+      z -= 0.26;
+      x += Math.sign(x || 1) * 0.12;
+    }
+
+    const o = i * 3;
+    base[o] = x;
+    base[o + 1] = y;
+    base[o + 2] = z;
+
+    size[i] = THREE.MathUtils.lerp(0.82, 1.55, Math.random());
+    alpha[i] = THREE.MathUtils.lerp(0.52, 0.92, Math.random());
+    phase[i] = Math.random() * Math.PI * 2;
+    sway[i] = 0.5 + Math.random() * 0.7;
+  }
+
+  return { base, size, alpha, phase, sway };
+}
+
 const ROUND_PARTICLE_VERTEX_SHADER = `
 attribute float aSize;
 attribute float aAlpha;
@@ -200,6 +237,7 @@ uniform float uSource;
 uniform float uCenter;
 uniform float uRest;
 uniform float uTime;
+uniform float uMotion;
 uniform vec2 uTilt;
 uniform vec3 uEmitCenter;
 uniform vec3 uEmitSideA;
@@ -221,6 +259,10 @@ void main() {
   float specB = pow(max(dot(n, normalize(lightB + v)), 0.0), 24.0);
 
   float silhouette = smoothstep(0.68, 1.0, rim);
+  float frontGlass = smoothstep(0.14, 0.86, ndv) * smoothstep(-0.12, 0.92, vLocalPos.z);
+  float sideWall = smoothstep(0.24, 0.96, rim) * smoothstep(-0.96, 0.2, -vLocalPos.z);
+  float backWall = smoothstep(-0.98, 0.12, -vLocalPos.z) * (0.16 + smoothstep(0.08, 0.74, ndv) * 0.84);
+  float wallThickness = sideWall * (0.58 + uMotion * 0.18) + backWall * 0.72 + frontGlass * 0.34;
   float lowerLens = smoothstep(-0.94, -0.06, vLocalPos.y) * smoothstep(-0.86, 0.4, -vLocalPos.z);
   float breathingBand = smoothstep(-0.26, 0.78, vLocalPos.y + uBreath * 0.08) * smoothstep(0.26, 0.86, rim);
   float pulseEcho = smoothstep(-0.72, 0.32, -vLocalPos.z) * smoothstep(0.18, 0.74, rim) * uPulse;
@@ -283,15 +325,23 @@ void main() {
 
   vec3 deep = vec3(0.03, 0.07, 0.14);
   vec3 glass = vec3(0.18, 0.34, 0.54);
+  vec3 frontTint = vec3(0.48, 0.62, 0.74);
+  vec3 backTint = vec3(0.1, 0.18, 0.32);
   vec3 edge = vec3(0.94, 0.98, 1.0);
   vec3 caustic = vec3(0.64, 0.84, 1.0);
 
-  vec3 color = mix(deep, glass, lowerLens * 0.08 + pulseEcho * 0.18 + breathingBand * 0.05 + innerScatter * 0.06 + sourceLift * 0.04);
-  color += edge * (silhouette * 0.74 + specA * 0.76 + specB * 0.2);
+  vec3 color = mix(deep, glass, lowerLens * 0.08 + pulseEcho * 0.18 + breathingBand * 0.05 + innerScatter * 0.06 + sourceLift * 0.04 + backWall * 0.12);
+  color += frontTint * frontGlass * 0.08;
+  color += backTint * backWall * 0.16;
+  color += edge * (silhouette * 0.74 + specA * 0.76 + specB * 0.2 + sideWall * 0.24 + frontGlass * 0.08);
   color += caustic * (pulseRays * 0.34 + centerArcA * 0.78 + centerArcB * 0.62 + sideArcA * 0.7 + sideArcB * 0.7 + backArc * 0.72 + fluidTravelA * 0.46 + fluidTravelB * 0.38 + ceilingGlow * 0.14 + innerScatter * 0.14 + backRimPulse * 0.28 + tiltSweep * 0.1 + restHalo * 0.18 + restArcA * 0.28 + restArcB * 0.28 + restBack * 0.24);
+  color += glass * wallThickness * 0.08;
 
   float alpha = 0.008;
   alpha += silhouette * 0.38;
+  alpha += frontGlass * 0.028;
+  alpha += sideWall * 0.058;
+  alpha += backWall * 0.052;
   alpha += specA * 0.18;
   alpha += specB * 0.05;
   alpha += lowerLens * 0.025;
@@ -313,6 +363,498 @@ void main() {
   alpha += restArcB * 0.024;
   alpha += restBack * 0.02;
   alpha = clamp(alpha, 0.0, 0.64);
+
+  gl_FragColor = vec4(color, alpha);
+}
+`;
+
+const BUBBLE_VERTEX_SHADER = `
+attribute float aSize;
+attribute float aAlpha;
+attribute float aPhase;
+varying float vAlpha;
+varying float vPhase;
+
+void main() {
+  vAlpha = aAlpha;
+  vPhase = aPhase;
+  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+  gl_PointSize = aSize * (34.0 / max(1.0, -mvPosition.z));
+  gl_Position = projectionMatrix * mvPosition;
+}
+`;
+
+const BUBBLE_FRAGMENT_SHADER = `
+uniform vec3 uColor;
+uniform float uOpacity;
+varying float vAlpha;
+varying float vPhase;
+
+void main() {
+  vec2 p = gl_PointCoord * 2.0 - 1.0;
+  float c = cos(vPhase);
+  float s = sin(vPhase);
+  p = mat2(c, -s, s, c) * p;
+  p.x *= 1.0 + sin(vPhase * 1.7) * 0.16;
+  p.y *= 1.0 + cos(vPhase * 2.1) * 0.1;
+
+  float r = length(p);
+  float body = smoothstep(1.0, 0.74, r);
+  float rim = smoothstep(0.94, 0.66, r) - smoothstep(0.66, 0.42, r);
+  float darkRim = smoothstep(0.99, 0.79, r) - smoothstep(0.79, 0.56, r);
+  float highlight = smoothstep(0.34, 0.0, length(p + vec2(0.2, -0.16)));
+  float innerShadow = smoothstep(0.82, 0.28, r);
+  float alpha = (body * 0.16 + rim * 1.02 + darkRim * 0.34 + innerShadow * 0.14 + highlight * 0.4) * vAlpha * uOpacity;
+
+  if (alpha < 0.01) discard;
+
+  vec3 color = mix(vec3(0.34, 0.42, 0.5), uColor * 1.04, body * 0.76 + rim * 0.38);
+  color = mix(color, vec3(0.2, 0.28, 0.36), darkRim * 0.72 + innerShadow * 0.16);
+  color = mix(color, vec3(1.0), highlight * 0.76 + rim * 0.22);
+  gl_FragColor = vec4(color, alpha);
+}
+`;
+
+const ORB_MEDIUM_FRAGMENT_SHADER = `
+uniform float uPulse;
+uniform float uPulseTravel;
+uniform float uBreath;
+uniform float uSource;
+uniform float uCenter;
+uniform float uTime;
+uniform float uMotion;
+uniform float uFlow;
+uniform vec2 uTilt;
+varying vec3 vWorldNormal;
+varying vec3 vWorldPos;
+varying vec3 vLocalPos;
+
+void main() {
+  vec3 n = normalize(vWorldNormal);
+  vec3 v = normalize(cameraPosition - vWorldPos);
+  float facing = dot(n, v);
+  float ndv = abs(facing);
+  float rim = 1.0 - ndv;
+  float frontFace = gl_FrontFacing ? 1.0 : 0.0;
+  float backFace = 1.0 - frontFace;
+
+  vec3 warpedPos = vec3(vLocalPos.x * 0.98, vLocalPos.y * 1.01, vLocalPos.z * 0.98);
+  float radial = length(warpedPos.xy);
+  float sideDensity = smoothstep(0.08, 0.98, radial);
+  float backDepth = smoothstep(-0.98, 0.1, -warpedPos.z);
+  float frontDepth = smoothstep(-0.12, 0.94, warpedPos.z);
+  float upperDome = smoothstep(0.12, 0.96, warpedPos.y);
+  float lowerBasin = smoothstep(-0.98, -0.12, warpedPos.y);
+  float tiltBias = clamp(dot(normalize(vec3(uTilt.x * 0.26, -uTilt.y * 0.26, 1.0)), normalize(warpedPos + vec3(0.0001))), -1.0, 1.0) * 0.5 + 0.5;
+  float motionSweep = smoothstep(0.34, 0.98, sideDensity) * smoothstep(0.26, 0.98, tiltBias) * uMotion;
+  float carryBand = smoothstep(0.28, 0.96, sideDensity) * smoothstep(-0.92, 0.3, -warpedPos.z) * (uSource * 0.08 + uCenter * 0.06 + uPulse * 0.04);
+  float domeAngle = atan(warpedPos.x, max(0.001, warpedPos.z + 1.1));
+  float inhaleBias = max(uBreath, 0.0);
+  float exhaleBias = max(-uBreath, 0.0);
+  float centerProfile = 1.0 - smoothstep(0.0, 0.78, radial);
+  float shoulderProfile = smoothstep(0.18, 0.72, radial) * (1.0 - smoothstep(0.72, 0.98, radial));
+  float edgeProfile = smoothstep(0.56, 0.96, radial);
+  vec2 surfaceVec = vec2(warpedPos.x * 0.96, (warpedPos.z + 0.04) * 2.65);
+  float surfaceRadius = length(surfaceVec);
+  float topSurfaceZone = smoothstep(0.54, 0.94, warpedPos.y);
+  float pulseTravel = smoothstep(0.0, 1.0, uPulseTravel);
+  float pulseCenterProfile = (1.0 - smoothstep(0.0, 0.16, surfaceRadius)) * topSurfaceZone;
+  float slosh = warpedPos.x * uFlow * 0.009 + uTilt.x * warpedPos.x * 0.004;
+  float calmWaveA = sin(domeAngle * 2.2 + uTime * 0.34 + uFlow * 1.6) * (0.0014 + abs(uFlow) * 0.0014);
+  float calmWaveB = sin(domeAngle * 4.1 - uTime * 0.28 - uFlow * 1.2) * (0.0009 + abs(uFlow) * 0.001);
+  float pulseRadial = smoothstep(0.03, 0.52, surfaceRadius) * (1.0 - smoothstep(0.52, 0.94, surfaceRadius));
+  float pulseCoreMask = 1.0 - smoothstep(0.0, 0.16, surfaceRadius);
+  float pulseField = max(pulseRadial, pulseCoreMask * 0.92);
+  float pulseRingA = 0.5 + 0.5 * cos(surfaceRadius * 88.0 - uPulse * 16.0 - uTime * 0.8);
+  float pulseRingB = 0.5 + 0.5 * cos(surfaceRadius * 56.0 - uPulse * 10.0 - uTime * 0.46);
+  float pulseCoreKiss = pulseCoreMask * uPulse * 0.0021;
+  float pulseRipple = (pulseRingA * 0.72 + pulseRingB * 0.28) * uPulse * 0.0042 * pulseField + pulseCoreKiss;
+  float pulseCrest = pow(pulseRingA, 3.2) * uPulse * 0.11 * pulseField + pulseCoreMask * uPulse * 0.05;
+  float pulseEdgeArrival = exp(-pow((pulseTravel - 0.94) / 0.08, 2.0));
+  float pulseEdgeBand = smoothstep(0.8, 0.98, surfaceRadius) * (1.0 - smoothstep(0.99, 1.08, surfaceRadius)) * topSurfaceZone * frontFace;
+  float pulseEdgeNoiseA = 0.5 + 0.5 * sin(domeAngle * 22.0 + uTime * 1.8 + surfaceRadius * 18.0);
+  float pulseEdgeNoiseB = 0.5 + 0.5 * sin(domeAngle * 31.0 - uTime * 1.2 + surfaceRadius * 27.0);
+  float pulseEdgeSkvulp = (pow(pulseEdgeNoiseA, 4.2) * 0.68 + pow(pulseEdgeNoiseB, 4.0) * 0.34) * pulseEdgeBand * pulseEdgeArrival * uPulse;
+  float inhaleBulge = inhaleBias * (0.017 * centerProfile + 0.004 * shoulderProfile);
+  float exhaleCenterDrop = exhaleBias * (0.014 * centerProfile + 0.005 * shoulderProfile);
+  float exhaleEdgeLift = exhaleBias * edgeProfile * 0.0034;
+  float pulseCenterDip = (1.0 - smoothstep(0.0, 0.16, pulseTravel)) * pulseCenterProfile * uPulse * 0.018;
+  float meniscusCenter = 0.813 - radial * 0.009 + inhaleBulge - exhaleCenterDrop + exhaleEdgeLift + slosh + calmWaveA + calmWaveB + pulseRipple - pulseCenterDip + pulseEdgeSkvulp * 0.0032;
+  float meniscusBand = smoothstep(meniscusCenter - 0.018, meniscusCenter + 0.042, warpedPos.y) * smoothstep(0.08, 0.92, radial) * frontFace;
+  float meniscusRim = smoothstep(0.08, 0.58, meniscusBand) * smoothstep(0.12, 0.88, sideDensity);
+  float waveCarry = meniscusRim * (0.18 + abs(uBreath) * 0.28 + uMotion * 0.08 + uPulse * 0.12);
+  float liquidMask = 1.0 - smoothstep(meniscusCenter - 0.01, meniscusCenter + 0.028, warpedPos.y);
+  float surfaceBand = 1.0 - smoothstep(0.002, 0.013, abs(warpedPos.y - meniscusCenter));
+  float visibleTopFace = max(backFace, frontFace * 0.12);
+  float pulseSurfaceMask =
+    surfaceBand *
+    visibleTopFace *
+    topSurfaceZone *
+    (1.0 - smoothstep(0.88, 1.04, surfaceRadius));
+  float pulseSurfaceLineA = pow(pulseRingA, 5.6);
+  float pulseSurfaceLineB = pow(pulseRingB, 4.8);
+  float pulseEdgeTremor =
+    (pulseSurfaceLineA * 0.5 + pulseSurfaceLineB * 0.26) *
+    uPulse *
+    pulseSurfaceMask *
+    smoothstep(0.64, 0.96, surfaceRadius);
+  float pulseCenterSurface = pulseCenterProfile * surfaceBand * visibleTopFace;
+  float pulsePlop = pulseCenterSurface * (1.0 - smoothstep(0.0, 0.12, pulseTravel)) * uPulse * 0.92;
+  float outwardHeadRadius = mix(0.05, 0.88, pulseTravel);
+  float outwardHead =
+    (1.0 - smoothstep(0.018, 0.06, abs(surfaceRadius - outwardHeadRadius))) *
+    pulseSurfaceMask;
+  float trailTravel = clamp((pulseTravel - 0.12) / 0.88, 0.0, 1.0);
+  float outwardTrailRadius = mix(0.02, 0.68, trailTravel);
+  float outwardTrail =
+    (1.0 - smoothstep(0.024, 0.082, abs(surfaceRadius - outwardTrailRadius))) *
+    pulseSurfaceMask *
+    smoothstep(0.18, 1.0, pulseTravel);
+  float pulseSurfaceLines =
+    pulseEdgeTremor +
+    pulsePlop +
+    outwardHead * uPulse * 1.48 +
+    outwardTrail * uPulse * 0.86;
+  float topReflect = smoothstep(meniscusCenter - 0.03, meniscusCenter + 0.012, warpedPos.y) * smoothstep(0.06, 0.9, radial) * frontFace;
+  float topReflectHalo = smoothstep(meniscusCenter - 0.048, meniscusCenter + 0.028, warpedPos.y) * smoothstep(0.02, 0.82, radial) * frontFace;
+  float topReflectDrift = 0.5 + 0.5 * sin(domeAngle * 2.1 + uTime * 0.42 + uFlow * 2.2);
+  float topReflectLight = topReflect * (0.6 + uCenter * 0.46 + uSource * 0.3 + uPulse * 0.2) * (0.92 + topReflectDrift * 0.28);
+  float topReflectLift = topReflectHalo * (0.14 + uCenter * 0.16 + uSource * 0.08);
+
+  vec3 deep = vec3(0.07, 0.13, 0.19);
+  vec3 liquid = vec3(0.24, 0.38, 0.48);
+  vec3 edge = vec3(0.72, 0.86, 0.95);
+  vec3 carry = vec3(0.78, 0.92, 1.0);
+
+  vec3 color = mix(deep, liquid, backFace * 0.58 + sideDensity * 0.12 + lowerBasin * 0.06);
+  color += liquid * frontFace * 0.08;
+  color *= liquidMask;
+  color += edge * meniscusRim * 0.24;
+  color += vec3(0.92, 0.98, 1.0) * pulseEdgeSkvulp * 0.42;
+  color += carry * waveCarry * 0.34;
+  color += vec3(0.94, 0.99, 1.0) * pulseSurfaceLines * 1.9;
+  color += vec3(0.97, 1.0, 1.0) * pulsePlop * 0.7;
+  color += vec3(0.92, 0.98, 1.0) * pulseCrest;
+  color += vec3(0.9, 0.97, 1.0) * topReflectLift * 0.92;
+  color += vec3(0.97, 1.0, 1.0) * topReflectLight * 1.74;
+  color += edge * (sideDensity * 0.08 + lowerBasin * 0.04) * liquidMask;
+  color += carry * (motionSweep * 0.08 + carryBand * 0.14) * liquidMask;
+
+  float alpha = 0.01;
+  alpha += (frontFace * (0.016 + frontDepth * 0.008));
+  alpha += (backFace * (0.05 + backDepth * 0.028));
+  alpha += sideDensity * 0.04;
+  alpha += lowerBasin * 0.02;
+  alpha += motionSweep * 0.01;
+  alpha += carryBand * 0.02;
+  alpha *= liquidMask;
+  alpha += meniscusRim * 0.04;
+  alpha += pulseEdgeSkvulp * 0.024;
+  alpha += pulseSurfaceLines * 0.088;
+  alpha += pulsePlop * 0.05;
+  alpha += pulseCrest * 0.02;
+  alpha += topReflectLift * 0.034;
+  alpha += topReflectLight * 0.112;
+  alpha = clamp(alpha, 0.0, 0.2);
+
+  gl_FragColor = vec4(color, alpha);
+}
+`;
+
+const MENISCUS_TOP_RIPPLE_FRAGMENT_SHADER = `
+uniform float uPulse;
+uniform float uPulseTravel;
+uniform float uImpact;
+uniform float uBreath;
+uniform float uFlow;
+uniform float uTime;
+uniform vec2 uTilt;
+uniform vec2 uSourceUv;
+varying vec3 vWorldNormal;
+varying vec3 vWorldPos;
+varying vec3 vLocalPos;
+varying vec2 vRippleUv;
+
+void main() {
+  vec3 n = normalize(vWorldNormal);
+  vec3 v = normalize(cameraPosition - vWorldPos);
+  float ndv = clamp(dot(n, v), 0.0, 1.0);
+  float rim = 1.0 - ndv;
+  float baseRadius = length(vRippleUv);
+  vec2 sourceDelta = vRippleUv - uSourceUv;
+  float topRadius = length(vec2(sourceDelta.x, sourceDelta.y * 0.7));
+  float rippleAngle = atan(vRippleUv.y - uSourceUv.y, vRippleUv.x - uSourceUv.x);
+  float topMask = 1.0 - smoothstep(0.94, 1.08, baseRadius);
+  if (topMask < 0.002) discard;
+
+  float beat = clamp(uImpact, 0.0, 1.0);
+  float travel = clamp(uPulseTravel, 0.0, 1.0);
+  float edgeBand = smoothstep(0.9, 0.995, baseRadius) * (1.0 - smoothstep(1.0, 1.06, baseRadius));
+  float centerMask = (1.0 - smoothstep(0.0, 0.2, topRadius)) * topMask;
+  float centerTight = (1.0 - smoothstep(0.0, 0.065, topRadius)) * topMask;
+  float centerLipRadius = mix(0.02, 0.062, smoothstep(0.06, 0.28, travel));
+  float centerLip = (1.0 - smoothstep(0.006, 0.026, abs(topRadius - centerLipRadius))) * centerMask;
+  float centerOuterLipRadius = centerLipRadius * 1.6;
+  float centerOuterLip = (1.0 - smoothstep(0.012, 0.036, abs(topRadius - centerOuterLipRadius))) * centerMask;
+  float edgeArrival = exp(-pow((mix(0.06, 1.12, travel) - 1.02) / 0.14, 2.0));
+
+  float edgeSeedA = 0.5 + 0.5 * cos(baseRadius * 42.0 - uTime * 0.4 + uFlow * 0.02);
+  float edgeSeedB = 0.5 + 0.5 * cos(baseRadius * 64.0 + uTime * 0.34 - uFlow * 0.02);
+  float edgePreludeBand = smoothstep(0.82, 0.98, baseRadius) * (1.0 - smoothstep(0.99, 1.07, baseRadius)) * topMask;
+  float edgePrelude = (1.0 - smoothstep(0.02, 0.18, travel)) * beat * edgePreludeBand;
+  float edgeTouch = pow(edgeArrival, 1.25);
+  float edgeTremor =
+    (pow(edgeSeedA, 4.0) * 0.32 + pow(edgeSeedB, 4.0) * 0.12) *
+    edgeBand *
+    beat *
+    topMask *
+    edgeTouch;
+  float edgeWake = smoothstep(0.58, 1.0, travel) * exp(-pow((mix(0.06, 1.12, travel) - 1.02) / 0.18, 2.0)) * beat * topMask;
+  float edgeHit = smoothstep(0.84, 1.0, travel) * exp(-pow((mix(0.06, 1.12, travel) - 1.01) / 0.11, 2.0)) * beat * topMask;
+  float edgeSlosh =
+    (0.5 + 0.5 * sin(rippleAngle * 10.0 + uTime * 0.9 + baseRadius * 24.0)) *
+    edgeBand *
+    (edgeTouch * 0.42 + edgeWake * 0.62 + edgeHit * 1.08) *
+    beat *
+    topMask;
+
+  float dipPhase = 1.0 - smoothstep(0.0, 0.16, travel);
+  float reboundPhase = smoothstep(0.05, 0.18, travel) * (1.0 - smoothstep(0.22, 0.42, travel));
+  float centerDip = centerMask * dipPhase * beat;
+  float centerPlop = (centerTight * reboundPhase * 0.66 + centerLip * reboundPhase * 1.05 + centerOuterLip * reboundPhase * 0.34) * beat;
+
+  float ringRadius = mix(0.04, 1.12, travel);
+  float ringCrest = exp(-pow((topRadius - ringRadius) / 0.052, 2.0));
+  float ringTrough = exp(-pow((topRadius - (ringRadius + 0.038)) / 0.078, 2.0));
+  float trailRadius = max(0.02, ringRadius - 0.18);
+  float trailCrest = exp(-pow((topRadius - trailRadius) / 0.062, 2.0));
+  float trailTrough = exp(-pow((topRadius - (trailRadius + 0.05)) / 0.092, 2.0));
+  float secondRadius = max(0.02, ringRadius - 0.3);
+  float secondCrest = exp(-pow((topRadius - secondRadius) / 0.072, 2.0));
+  float secondTrough = exp(-pow((topRadius - (secondRadius + 0.054)) / 0.104, 2.0));
+  float thirdRadius = max(0.02, ringRadius - 0.44);
+  float thirdCrest = exp(-pow((topRadius - thirdRadius) / 0.084, 2.0));
+  float thirdTrough = exp(-pow((topRadius - (thirdRadius + 0.062)) / 0.116, 2.0));
+  float outwardRing = ringCrest * smoothstep(0.05, 1.0, travel) * beat * topMask;
+  float outwardRingShadow = ringTrough * smoothstep(0.05, 1.0, travel) * beat * topMask;
+  float outwardTrail = trailCrest * smoothstep(0.12, 1.0, travel) * beat * topMask;
+  float outwardTrailShadow = trailTrough * smoothstep(0.12, 1.0, travel) * beat * topMask;
+  float outwardSecond = secondCrest * smoothstep(0.18, 0.92, travel) * beat * topMask * 0.74;
+  float outwardSecondShadow = secondTrough * smoothstep(0.18, 0.92, travel) * beat * topMask * 0.74;
+  float outwardThird = thirdCrest * smoothstep(0.26, 0.82, travel) * beat * topMask * 0.34;
+  float outwardThirdShadow = thirdTrough * smoothstep(0.26, 0.82, travel) * beat * topMask * 0.34;
+  float bubbleSeedA = 0.5 + 0.5 * sin(rippleAngle * 18.0 + uTime * 1.8 + topRadius * 22.0);
+  float bubbleSeedB = 0.5 + 0.5 * sin(rippleAngle * 31.0 - uTime * 1.2 + topRadius * 36.0);
+  float edgeMicroBubbles = (pow(bubbleSeedA, 8.0) * 0.08 + pow(bubbleSeedB, 10.0) * 0.04) * edgeBand * (edgeTouch * 0.08 + edgeWake * 0.05 + edgeHit * 0.04) * topMask;
+  float waterSpec = pow(1.0 - rim, 2.2) * (
+    outwardRing * 1.34 +
+    outwardTrail * 0.86 +
+    outwardSecond * 0.74 +
+    outwardThird * 0.52 +
+    centerPlop * 1.02 +
+    centerLip * reboundPhase * beat * 0.86 +
+    edgeSlosh * 0.18
+  );
+
+  vec3 color = vec3(0.0);
+  color += vec3(0.02, 0.045, 0.09) * edgePrelude * 0.88;
+  color += vec3(0.94, 0.99, 1.0) * edgeTremor * (0.28 + edgeTouch * 0.48 + edgeWake * 0.18 + edgeHit * 0.62);
+  color += vec3(0.94, 0.99, 1.0) * edgeSlosh * (0.12 + edgeTouch * 0.28 + edgeWake * 0.18 + edgeHit * 1.04);
+  color += vec3(0.028, 0.064, 0.13) * centerDip * 3.4;
+  color += vec3(1.0, 1.0, 1.0) * centerPlop * 3.28;
+  color += vec3(0.94, 0.99, 1.0) * centerLip * reboundPhase * beat * 1.92;
+  color += vec3(0.92, 0.98, 1.0) * centerOuterLip * reboundPhase * beat * 0.72;
+  color += vec3(1.0, 1.0, 1.0) * outwardRing * 8.9;
+  color += vec3(0.02, 0.045, 0.095) * outwardRingShadow * 3.3;
+  color += vec3(0.92, 0.98, 1.0) * outwardTrail * 5.2;
+  color += vec3(0.03, 0.055, 0.095) * outwardTrailShadow * 2.0;
+  color += vec3(0.88, 0.96, 1.0) * outwardSecond * 3.7;
+  color += vec3(0.025, 0.05, 0.09) * outwardSecondShadow * 1.5;
+  color += vec3(0.84, 0.94, 1.0) * outwardThird * 2.4;
+  color += vec3(0.022, 0.042, 0.082) * outwardThirdShadow * 0.98;
+  color += vec3(0.99, 1.0, 1.0) * edgeMicroBubbles * 0.18;
+  color += vec3(1.0, 1.0, 1.0) * waterSpec * 3.1;
+
+  float alpha = 0.0;
+  alpha += edgePrelude * 0.03;
+  alpha += edgeTremor * (0.018 + edgeTouch * 0.038 + edgeWake * 0.018 + edgeHit * 0.038);
+  alpha += edgeSlosh * (0.01 + edgeTouch * 0.026 + edgeWake * 0.018 + edgeHit * 0.058);
+  alpha += centerDip * 0.62;
+  alpha += centerPlop * 0.82;
+  alpha += centerLip * reboundPhase * beat * 0.48;
+  alpha += centerOuterLip * reboundPhase * beat * 0.16;
+  alpha += outwardRing * 1.42;
+  alpha += outwardRingShadow * 0.42;
+  alpha += outwardTrail * 0.96;
+  alpha += outwardTrailShadow * 0.28;
+  alpha += outwardSecond * 0.66;
+  alpha += outwardSecondShadow * 0.21;
+  alpha += outwardThird * 0.38;
+  alpha += outwardThirdShadow * 0.12;
+  alpha += edgeMicroBubbles * 0.01;
+  alpha += waterSpec * 0.36;
+  alpha *= clamp(0.48 + (1.0 - ndv) * 0.52, 0.0, 1.0);
+  alpha = clamp(alpha, 0.0, 0.9);
+
+  if (alpha < 0.004) discard;
+
+  gl_FragColor = vec4(color, alpha);
+}
+`;
+
+const MENISCUS_TOP_RIPPLE_VERTEX_SHADER = `
+uniform float uPulse;
+uniform float uPulseTravel;
+uniform float uImpact;
+uniform float uBreath;
+uniform float uFlow;
+uniform float uTime;
+uniform vec2 uTilt;
+uniform vec2 uSourceUv;
+varying vec3 vWorldNormal;
+varying vec3 vWorldPos;
+varying vec3 vLocalPos;
+varying vec2 vRippleUv;
+
+vec3 sampleSurface(vec2 plate, float beat, float travel) {
+  float surfaceX = plate.x * 0.98;
+  float surfaceZ = plate.y * 0.56;
+  vec2 rippleUv = vec2(surfaceX / 0.61, surfaceZ / 0.3);
+  float baseRadius = length(rippleUv);
+  vec2 sourceDelta = rippleUv - uSourceUv;
+  float topRadius = length(vec2(sourceDelta.x, sourceDelta.y * 0.7));
+  float inhaleBias = max(uBreath, 0.0);
+  float exhaleBias = max(-uBreath, 0.0);
+  float centerProfile = 1.0 - smoothstep(0.0, 0.78, baseRadius);
+  float shoulderProfile = smoothstep(0.18, 0.72, baseRadius) * (1.0 - smoothstep(0.72, 0.98, baseRadius));
+  float edgeProfile = smoothstep(0.56, 0.96, baseRadius);
+  float domeAngle = atan(surfaceX, max(0.001, surfaceZ + 1.1));
+  float slosh = surfaceX * uFlow * 0.009 + uTilt.x * surfaceX * 0.004;
+  float calmWaveA = sin(domeAngle * 2.2 + uTime * 0.34 + uFlow * 1.6) * (0.0014 + abs(uFlow) * 0.0014);
+  float calmWaveB = sin(domeAngle * 4.1 - uTime * 0.28 - uFlow * 1.2) * (0.0009 + abs(uFlow) * 0.001);
+  float inhaleBulge = inhaleBias * (0.017 * centerProfile + 0.004 * shoulderProfile);
+  float exhaleCenterDrop = exhaleBias * (0.014 * centerProfile + 0.005 * shoulderProfile);
+  float exhaleEdgeLift = exhaleBias * edgeProfile * 0.0034;
+  float meniscusCenter = 0.813 - baseRadius * 0.009 + inhaleBulge - exhaleCenterDrop + exhaleEdgeLift + slosh + calmWaveA + calmWaveB;
+
+  float topPlateMask = 1.0 - smoothstep(0.94, 1.08, baseRadius);
+  float centerMask = (1.0 - smoothstep(0.0, 0.2, topRadius)) * topPlateMask;
+  float centerTight = (1.0 - smoothstep(0.0, 0.06, topRadius)) * topPlateMask;
+  float centerLipRadius = mix(0.02, 0.062, smoothstep(0.06, 0.28, travel));
+  float centerLip = (1.0 - smoothstep(0.006, 0.026, abs(topRadius - centerLipRadius))) * centerMask;
+  float centerOuterLipRadius = centerLipRadius * 1.6;
+  float centerOuterLip = (1.0 - smoothstep(0.012, 0.036, abs(topRadius - centerOuterLipRadius))) * centerMask;
+
+  float dipPhase = 1.0 - smoothstep(0.0, 0.16, travel);
+  float reboundPhase = smoothstep(0.05, 0.18, travel) * (1.0 - smoothstep(0.22, 0.42, travel));
+  float ringRadius = mix(0.04, 1.12, travel);
+  float ringCrest = exp(-pow((topRadius - ringRadius) / 0.052, 2.0));
+  float ringTrough = exp(-pow((topRadius - (ringRadius + 0.038)) / 0.078, 2.0));
+  float trailRadius = max(0.02, ringRadius - 0.18);
+  float trailCrest = exp(-pow((topRadius - trailRadius) / 0.062, 2.0));
+  float trailTrough = exp(-pow((topRadius - (trailRadius + 0.05)) / 0.092, 2.0));
+  float secondRadius = max(0.02, ringRadius - 0.3);
+  float secondCrest = exp(-pow((topRadius - secondRadius) / 0.072, 2.0));
+  float secondTrough = exp(-pow((topRadius - (secondRadius + 0.054)) / 0.104, 2.0));
+  float thirdRadius = max(0.02, ringRadius - 0.44);
+  float thirdCrest = exp(-pow((topRadius - thirdRadius) / 0.084, 2.0));
+  float thirdTrough = exp(-pow((topRadius - (thirdRadius + 0.062)) / 0.116, 2.0));
+
+  float centerCoreDip = centerTight * dipPhase * beat * 0.028;
+  float centerDip = centerMask * dipPhase * beat * 0.11;
+  float centerRebound = centerMask * reboundPhase * beat * 0.058;
+  float vortexCoreRise = centerTight * reboundPhase * beat * 0.026;
+  float vortexLipRise = centerLip * reboundPhase * beat * 0.036;
+  float vortexOuterLift = centerOuterLip * reboundPhase * beat * 0.014;
+  float plopSpike = vortexCoreRise + vortexLipRise + vortexOuterLift;
+  float ringLift = (ringCrest * 0.108 - ringTrough * 0.042) * smoothstep(0.06, 1.0, travel) * beat * topPlateMask;
+  float trailLift = (trailCrest * 0.056 - trailTrough * 0.022) * smoothstep(0.12, 1.0, travel) * beat * topPlateMask;
+  float secondLift = (secondCrest * 0.032 - secondTrough * 0.012) * smoothstep(0.18, 0.92, travel) * beat * topPlateMask;
+  float thirdLift = (thirdCrest * 0.012 - thirdTrough * 0.005) * smoothstep(0.26, 0.82, travel) * beat * topPlateMask;
+  float edgeSeed = 0.5 + 0.5 * cos(baseRadius * 54.0 - uTime * 0.44 + uFlow * 0.03);
+  float edgePreludeBand = smoothstep(0.82, 0.98, baseRadius) * (1.0 - smoothstep(0.99, 1.07, baseRadius)) * topPlateMask;
+  float edgePrelude = (1.0 - smoothstep(0.02, 0.18, travel)) * beat * edgePreludeBand;
+  float edgeArrival = exp(-pow((ringRadius - 1.02) / 0.14, 2.0));
+  float edgeTouch = pow(edgeArrival, 1.25);
+  float edgeWake = smoothstep(0.58, 1.0, travel) * exp(-pow((ringRadius - 1.02) / 0.18, 2.0)) * beat * topPlateMask;
+  float edgeHit = smoothstep(0.84, 1.0, travel) * exp(-pow((ringRadius - 1.01) / 0.11, 2.0)) * beat * topPlateMask;
+  float edgeTremor = pow(edgeSeed, 4.0) * smoothstep(0.9, 1.0, baseRadius) * topPlateMask * (edgeTouch * (0.0012 + edgeTouch * 0.005) + edgeWake * 0.0026 + edgeHit * 0.0046);
+  float edgeSlosh = (0.5 + 0.5 * sin(atan(sourceDelta.y, sourceDelta.x) * 10.0 + uTime * 0.9 + baseRadius * 24.0)) * smoothstep(0.92, 1.02, baseRadius) * topPlateMask * (edgeTouch * 0.0018 + edgeWake * 0.0016 + edgeHit * 0.0038);
+
+  float surfaceY = meniscusCenter - centerDip - centerCoreDip + centerRebound + plopSpike + ringLift + trailLift + secondLift + thirdLift - edgePrelude * 0.006 + edgeTremor + edgeSlosh;
+  return vec3(surfaceX, surfaceY, surfaceZ);
+}
+
+void main() {
+  float beat = clamp(uImpact, 0.0, 1.0);
+  float travel = clamp(uPulseTravel, 0.0, 1.0);
+  vec2 plate = position.xy;
+  vec3 displaced = sampleSurface(plate, beat, travel);
+  float eps = 0.005;
+  vec3 displacedX = sampleSurface(plate + vec2(eps, 0.0), beat, travel);
+  vec3 displacedY = sampleSurface(plate + vec2(0.0, eps), beat, travel);
+  vec3 localNormal = normalize(cross(displacedY - displaced, displacedX - displaced));
+  vec2 rippleUv = vec2(displaced.x / 0.61, displaced.z / 0.3);
+
+  vLocalPos = displaced;
+  vRippleUv = rippleUv;
+  vec4 worldPos = modelMatrix * vec4(displaced, 1.0);
+  vWorldPos = worldPos.xyz;
+  vWorldNormal = normalize(mat3(modelMatrix) * localNormal);
+  gl_Position = projectionMatrix * viewMatrix * worldPos;
+}
+`;
+
+const ORB_OUTER_CARRIER_FRAGMENT_SHADER = `
+uniform float uBreath;
+uniform float uTime;
+uniform float uMotion;
+uniform float uFlow;
+uniform float uSource;
+uniform float uCenter;
+varying vec3 vWorldNormal;
+varying vec3 vWorldPos;
+varying vec3 vLocalPos;
+
+void main() {
+  vec3 n = normalize(vWorldNormal);
+  vec3 v = normalize(cameraPosition - vWorldPos);
+  float ndv = clamp(dot(n, v), 0.0, 1.0);
+  float rim = 1.0 - ndv;
+
+  float outerRim = smoothstep(0.78, 1.0, rim);
+  float innerBand = smoothstep(0.38, 0.72, rim) * (1.0 - smoothstep(0.72, 0.9, rim));
+  float upperBow = smoothstep(0.28, 0.98, vLocalPos.y) * smoothstep(0.24, 0.995, rim);
+  float sideCarry = smoothstep(0.38, 0.995, rim) * smoothstep(0.14, 0.98, abs(vLocalPos.x));
+  float lowerCarry = smoothstep(-0.98, -0.16, vLocalPos.y) * smoothstep(0.38, 0.995, rim);
+  float frontLens = smoothstep(0.46, 0.98, ndv) * smoothstep(0.06, 0.98, vLocalPos.y);
+  float sideBow = smoothstep(0.18, 0.94, vLocalPos.y) * smoothstep(0.52, 0.98, abs(vLocalPos.x)) * smoothstep(0.34, 0.995, rim);
+  float innerWeight = smoothstep(0.08, 0.32, rim) * smoothstep(0.18, 0.96, vLocalPos.y);
+  float breathShift = sin(vLocalPos.x * 5.4 + uTime * 0.54 + uBreath * 3.2 + uFlow * 2.8) * (0.008 + abs(uBreath) * 0.01 + abs(uFlow) * 0.006);
+  float bowWave = upperBow * (0.82 + breathShift * 2.4);
+  float topMirror = smoothstep(0.5, 0.98, vLocalPos.y) * smoothstep(0.3, 0.94, rim) * smoothstep(0.08, 0.94, 1.0 - abs(vLocalPos.x) * 0.8);
+  float topMirrorPulse = topMirror * (0.58 + uCenter * 0.38 + uSource * 0.24 + uMotion * 0.1) * (0.9 + 0.2 * sin(uTime * 0.5 + vLocalPos.x * 4.2 + uFlow * 2.4));
+
+  vec3 edge = vec3(0.94, 0.98, 1.0);
+  vec3 carry = vec3(0.78, 0.88, 0.98);
+  vec3 weight = vec3(0.4, 0.5, 0.62);
+  vec3 color = edge * (outerRim * 0.8 + upperBow * 0.84 + sideCarry * 0.28 + lowerCarry * 0.12 + frontLens * 0.22 + sideBow * 0.18);
+  color += carry * (bowWave * 0.16 + uMotion * sideCarry * 0.06 + outerRim * 0.18);
+  color += vec3(0.94, 0.99, 1.0) * topMirrorPulse * 1.68;
+  color = mix(color, weight, (innerWeight * 0.38 + innerBand * 0.54));
+
+  float alpha = 0.0;
+  alpha += outerRim * 0.11;
+  alpha += upperBow * 0.09;
+  alpha += sideCarry * 0.05;
+  alpha += lowerCarry * 0.022;
+  alpha += frontLens * 0.024;
+  alpha += sideBow * 0.04;
+  alpha += innerBand * 0.08;
+  alpha += bowWave * 0.024;
+  alpha += topMirrorPulse * 0.132;
+  alpha += innerWeight * 0.06;
+  alpha = clamp(alpha, 0.0, 0.26);
 
   gl_FragColor = vec4(color, alpha);
 }
@@ -403,7 +945,11 @@ void main() {
 export default function PulseScene({ bridge }: Props) {
   const pulseUnitRef = useRef<THREE.Group>(null!);
   const orbShellRef = useRef<THREE.Mesh>(null!);
+  const orbOuterCarrierRef = useRef<THREE.Mesh>(null!);
+  const orbMediumRef = useRef<THREE.Mesh>(null!);
+  const orbTopRippleRef = useRef<THREE.Mesh>(null!);
   const orbParticlesRef = useRef<THREE.Points>(null!);
+  const orbBubblesRef = useRef<THREE.Points>(null!);
   const coreGroupRef = useRef<THREE.Group>(null!);
   const coreMembraneRef = useRef<THREE.Mesh>(null!);
   const coreBodyRef = useRef<THREE.Mesh>(null!);
@@ -421,18 +967,28 @@ export default function PulseScene({ bridge }: Props) {
   const breathHighRef = useRef(1.08);
   const sourceFlashRef = useRef(0);
   const orbEchoRef = useRef(0);
+  const pulseSurfaceProgressRef = useRef(1);
+  const topRippleProgressRef = useRef(1);
+  const topRippleImpactRef = useRef(0);
+  const previousBeatInstantRef = useRef(0);
   const previousSpinRef = useRef(0);
   const previousTiltXRef = useRef(0);
   const previousTiltYRef = useRef(0);
   const restLightRef = useRef(1);
+  const motionTrailRef = useRef(0);
+  const spinDirectionRef = useRef(1);
+  const bubbleOrbitFlowRef = useRef(0);
 
   const orbEmitterTemps = useMemo(
     () => ({
       centerWorld: new THREE.Vector3(),
+      topRippleWorld: new THREE.Vector3(),
       sideAWorld: new THREE.Vector3(),
       sideBWorld: new THREE.Vector3(),
       backWorld: new THREE.Vector3(),
       centerLocal: new THREE.Vector3(),
+      centerMediumLocal: new THREE.Vector3(),
+      topRippleLocal: new THREE.Vector3(),
       sideALocal: new THREE.Vector3(),
       sideBLocal: new THREE.Vector3(),
       backLocal: new THREE.Vector3(),
@@ -441,7 +997,23 @@ export default function PulseScene({ bridge }: Props) {
   );
 
   const orbShellUniforms = useMemo(
-    () => ({ uPulse: { value: 0 }, uBreath: { value: 0 }, uSource: { value: 0 }, uCenter: { value: 0 }, uRest: { value: 1 }, uTime: { value: 0 }, uTilt: { value: new THREE.Vector2() }, uEmitCenter: { value: new THREE.Vector3() }, uEmitSideA: { value: new THREE.Vector3() }, uEmitSideB: { value: new THREE.Vector3() }, uEmitBack: { value: new THREE.Vector3() } }),
+    () => ({ uPulse: { value: 0 }, uBreath: { value: 0 }, uSource: { value: 0 }, uCenter: { value: 0 }, uRest: { value: 1 }, uTime: { value: 0 }, uMotion: { value: 0 }, uTilt: { value: new THREE.Vector2() }, uEmitCenter: { value: new THREE.Vector3() }, uEmitSideA: { value: new THREE.Vector3() }, uEmitSideB: { value: new THREE.Vector3() }, uEmitBack: { value: new THREE.Vector3() } }),
+    []
+  );
+  const orbMediumUniforms = useMemo(
+    () => ({ uPulse: { value: 0 }, uPulseTravel: { value: 1 }, uBreath: { value: 0 }, uSource: { value: 0 }, uCenter: { value: 0 }, uTime: { value: 0 }, uMotion: { value: 0 }, uFlow: { value: 0 }, uTilt: { value: new THREE.Vector2() } }),
+    []
+  );
+  const topSurfaceRippleGeometry = useMemo(
+    () => new THREE.PlaneGeometry(1.24, 1.1, 240, 208),
+    []
+  );
+  const orbTopRippleUniforms = useMemo(
+    () => ({ uPulse: { value: 0 }, uPulseTravel: { value: 1 }, uImpact: { value: 0 }, uBreath: { value: 0 }, uFlow: { value: 0 }, uTime: { value: 0 }, uTilt: { value: new THREE.Vector2() }, uSourceUv: { value: new THREE.Vector2() } }),
+    []
+  );
+  const orbOuterCarrierUniforms = useMemo(
+    () => ({ uBreath: { value: 0 }, uTime: { value: 0 }, uMotion: { value: 0 }, uFlow: { value: 0 }, uSource: { value: 0 }, uCenter: { value: 0 } }),
     []
   );
   const coreBodyUniforms = useMemo(
@@ -454,6 +1026,13 @@ export default function PulseScene({ bridge }: Props) {
     () => ({
       uColor: { value: new THREE.Color("#dff6ff") },
       uOpacity: { value: 0.02 },
+    }),
+    []
+  );
+  const orbBubbleUniforms = useMemo(
+    () => ({
+      uColor: { value: new THREE.Color("#f2fdff") },
+      uOpacity: { value: 0 },
     }),
     []
   );
@@ -525,6 +1104,32 @@ export default function PulseScene({ bridge }: Props) {
     geometry.computeBoundingSphere();
     return geometry;
   }, [orbParticleField.alpha, orbParticleField.size, orbParticlePositions]);
+  const orbBubbleField = useMemo(
+    () => makeOrbBubbleField(18),
+    []
+  );
+  const orbBubblePositions = useMemo(
+    () => new Float32Array(orbBubbleField.base),
+    [orbBubbleField]
+  );
+  const orbBubblePositionsRef = useRef<Float32Array>(orbBubblePositions);
+  const orbBubbleAlphaValues = useMemo(
+    () => new Float32Array(orbBubbleField.alpha),
+    [orbBubbleField]
+  );
+  const orbBubbleAlphaRef = useRef<Float32Array>(orbBubbleAlphaValues);
+  const orbBubbleGeometry = useMemo(() => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(orbBubblePositions, 3)
+    );
+    geometry.setAttribute("aSize", new THREE.BufferAttribute(orbBubbleField.size, 1));
+    geometry.setAttribute("aAlpha", new THREE.BufferAttribute(orbBubbleAlphaValues, 1));
+    geometry.setAttribute("aPhase", new THREE.BufferAttribute(orbBubbleField.phase, 1));
+    geometry.computeBoundingSphere();
+    return geometry;
+  }, [orbBubbleAlphaValues, orbBubbleField.phase, orbBubbleField.size, orbBubblePositions]);
 
   const coreParticleField = useMemo(
     () =>
@@ -561,15 +1166,20 @@ export default function PulseScene({ bridge }: Props) {
   useEffect(() => {
     return () => {
       orbParticleGeometry.dispose();
+      orbBubbleGeometry.dispose();
       coreParticleGeometry.dispose();
     };
-  }, [coreParticleGeometry, orbParticleGeometry]);
+  }, [coreParticleGeometry, orbBubbleGeometry, orbParticleGeometry]);
 
   useFrame((state, delta) => {
     if (
       !pulseUnitRef.current ||
       !orbShellRef.current ||
+      !orbOuterCarrierRef.current ||
+      !orbMediumRef.current ||
+      !orbTopRippleRef.current ||
       !orbParticlesRef.current ||
+      !orbBubblesRef.current ||
       !coreGroupRef.current ||
       !coreMembraneRef.current ||
       !coreBodyRef.current ||
@@ -606,16 +1216,50 @@ export default function PulseScene({ bridge }: Props) {
 
     const t = state.clock.getElapsedTime();
     const dt = Math.max(delta, 1 / 240);
-    const spinDelta = Math.abs(spin - previousSpinRef.current);
+    const signedSpinDelta = spin - previousSpinRef.current;
+    const spinDelta = Math.abs(signedSpinDelta);
     const tiltDelta = Math.abs(tiltX - previousTiltXRef.current) + Math.abs(tiltY - previousTiltYRef.current);
+    if (Math.abs(signedSpinDelta) > 0.0001) {
+      spinDirectionRef.current = Math.sign(signedSpinDelta);
+    }
+    bubbleOrbitFlowRef.current = THREE.MathUtils.lerp(
+      bubbleOrbitFlowRef.current,
+      signedSpinDelta * 13,
+      Math.abs(signedSpinDelta) > 0.0001 ? 0.34 : 0.08
+    );
     previousSpinRef.current = spin;
     previousTiltXRef.current = tiltX;
     previousTiltYRef.current = tiltY;
     const motionSample = THREE.MathUtils.clamp(spinDelta * 7 + tiltDelta * 22, 0, 1);
+    const motionTarget = THREE.MathUtils.clamp(
+      motionSample * 1.35 + Math.min(0.22, Math.abs(tiltX) * 0.42 + Math.abs(tiltY) * 0.42),
+      0,
+      1
+    );
+    motionTrailRef.current = THREE.MathUtils.lerp(motionTrailRef.current, motionTarget, motionTarget > motionTrailRef.current ? 0.2 : 0.06);
     const targetRest = 1 - THREE.MathUtils.smoothstep(motionSample, 0.01, 0.18);
     restLightRef.current = THREE.MathUtils.lerp(restLightRef.current, targetRest, 0.12);
     const beatNorm = beat / 1.2;
     const beatInstant = clamp01((beat - 0.06) / 0.42);
+    if (beatInstant > 0.22 && previousBeatInstantRef.current <= 0.22) {
+      pulseSurfaceProgressRef.current = 0;
+      topRippleProgressRef.current = 0;
+      topRippleImpactRef.current = 1;
+    } else {
+      pulseSurfaceProgressRef.current = Math.min(
+        1,
+        pulseSurfaceProgressRef.current + dt * (1.85 + beatInstant * 1.4)
+      );
+      topRippleProgressRef.current = Math.min(
+        1,
+        topRippleProgressRef.current + dt * 0.17
+      );
+    }
+    topRippleImpactRef.current = Math.max(
+      0,
+      topRippleImpactRef.current - dt * 0.2
+    );
+    previousBeatInstantRef.current = beatInstant;
 
     sourceFlashRef.current = Math.max(sourceFlashRef.current - dt * 2.45, beatInstant);
     orbEchoRef.current = Math.max(orbEchoRef.current - dt * 0.62, 0);
@@ -674,6 +1318,37 @@ export default function PulseScene({ bridge }: Props) {
       1.0 + breathFill * 0.022 + inhale * 0.009 - exhale * 0.007 + shellWaveB + shellPulse,
       0.998 - breathFill * 0.007 - shellWaveA * 0.36 + shellPulse * 0.38 - shellWaveC * 0.55
     );
+    orbOuterCarrierRef.current.rotation.copy(orbShellRef.current.rotation);
+    orbOuterCarrierRef.current.position.copy(orbShellRef.current.position);
+    orbOuterCarrierRef.current.scale.set(
+      orbShellRef.current.scale.x * 1.014,
+      orbShellRef.current.scale.y * 1.016,
+      orbShellRef.current.scale.z * 1.013
+    );
+    orbMediumRef.current.rotation.y = spin * 0.82 + motionTrailRef.current * 0.03;
+    orbMediumRef.current.rotation.x = tiltX * 0.045 + shellWaveA * 0.2 + motionTrailRef.current * 0.018;
+    orbMediumRef.current.rotation.z = tiltY * 0.04 + shellWaveB * 0.18 - motionTrailRef.current * 0.012;
+    orbMediumRef.current.position.set(
+      tiltY * (0.002 + motionTrailRef.current * 0.003),
+      breathFill * 0.001 + shellPulse * 0.018,
+      -0.002
+    );
+    orbMediumRef.current.scale.set(
+      0.992 - breathFill * 0.001 + shellWaveA * 0.03,
+      0.993 + breathFill * 0.002 + shellWaveB * 0.04,
+      0.99 - breathFill * 0.001 - shellWaveC * 0.03
+    );
+    orbTopRippleRef.current.rotation.set(
+      -tiltX * 0.012 + breathVelocity * 0.006,
+      0,
+      -tiltY * 0.012 - breathVelocity * 0.004
+    );
+    orbTopRippleRef.current.position.set(
+      0,
+      orbMediumRef.current.position.y,
+      orbMediumRef.current.position.z
+    );
+    orbTopRippleRef.current.scale.copy(orbMediumRef.current.scale);
 
     coreGroupRef.current.position.set(
       tiltY * 0.006,
@@ -729,15 +1404,20 @@ export default function PulseScene({ bridge }: Props) {
     coreGroupRef.current.updateWorldMatrix(true, true);
 
     coreCenterGlowRef.current.getWorldPosition(orbEmitterTemps.centerWorld);
+    coreGroupRef.current.getWorldPosition(orbEmitterTemps.topRippleWorld);
     coreMembraneRef.current.localToWorld(orbEmitterTemps.sideAWorld.set(-0.22, -0.01, -0.01));
     coreMembraneRef.current.localToWorld(orbEmitterTemps.sideBWorld.set(0.22, -0.01, -0.01));
     coreBodyRef.current.localToWorld(orbEmitterTemps.backWorld.set(0, -0.01, -0.2));
 
     orbEmitterTemps.centerLocal.copy(orbEmitterTemps.centerWorld);
+    orbEmitterTemps.centerMediumLocal.copy(orbEmitterTemps.centerWorld);
+    orbEmitterTemps.topRippleLocal.copy(orbEmitterTemps.topRippleWorld);
     orbEmitterTemps.sideALocal.copy(orbEmitterTemps.sideAWorld);
     orbEmitterTemps.sideBLocal.copy(orbEmitterTemps.sideBWorld);
     orbEmitterTemps.backLocal.copy(orbEmitterTemps.backWorld);
     orbShellRef.current.worldToLocal(orbEmitterTemps.centerLocal);
+    orbMediumRef.current.worldToLocal(orbEmitterTemps.centerMediumLocal);
+    orbMediumRef.current.worldToLocal(orbEmitterTemps.topRippleLocal);
     orbShellRef.current.worldToLocal(orbEmitterTemps.sideALocal);
     orbShellRef.current.worldToLocal(orbEmitterTemps.sideBLocal);
     orbShellRef.current.worldToLocal(orbEmitterTemps.backLocal);
@@ -753,11 +1433,38 @@ export default function PulseScene({ bridge }: Props) {
     orbShellMaterial.uniforms.uCenter.value = centerSpark;
     orbShellMaterial.uniforms.uRest.value = restLightRef.current;
     orbShellMaterial.uniforms.uTime.value = t;
+    orbShellMaterial.uniforms.uMotion.value = motionTrailRef.current;
     orbShellMaterial.uniforms.uTilt.value.set(tiltY * 5.4, tiltX * 5.4);
     orbShellMaterial.uniforms.uEmitCenter.value.copy(orbEmitterTemps.centerLocal);
     orbShellMaterial.uniforms.uEmitSideA.value.copy(orbEmitterTemps.sideALocal);
     orbShellMaterial.uniforms.uEmitSideB.value.copy(orbEmitterTemps.sideBLocal);
     orbShellMaterial.uniforms.uEmitBack.value.copy(orbEmitterTemps.backLocal);
+    const orbMediumMaterial = orbMediumRef.current.material as THREE.ShaderMaterial;
+    const orbTopRippleMaterial = orbTopRippleRef.current.material as THREE.ShaderMaterial;
+    const orbOuterCarrierMaterial = orbOuterCarrierRef.current.material as THREE.ShaderMaterial;
+    orbMediumMaterial.uniforms.uPulse.value = orbResponse;
+    orbMediumMaterial.uniforms.uPulseTravel.value = pulseSurfaceProgressRef.current;
+    orbMediumMaterial.uniforms.uBreath.value = breathFill + inhale * 0.45 - exhale * 0.18;
+    orbMediumMaterial.uniforms.uSource.value = sourceSpark;
+    orbMediumMaterial.uniforms.uCenter.value = centerSpark;
+    orbMediumMaterial.uniforms.uTime.value = t;
+    orbMediumMaterial.uniforms.uMotion.value = motionTrailRef.current;
+    orbMediumMaterial.uniforms.uFlow.value = breathVelocity;
+    orbMediumMaterial.uniforms.uTilt.value.set(tiltY * 4.8, tiltX * 4.8);
+    orbTopRippleMaterial.uniforms.uPulse.value = orbResponse;
+    orbTopRippleMaterial.uniforms.uPulseTravel.value = topRippleProgressRef.current;
+    orbTopRippleMaterial.uniforms.uImpact.value = topRippleImpactRef.current;
+    orbTopRippleMaterial.uniforms.uBreath.value = breathFill + inhale * 0.45 - exhale * 0.18;
+    orbTopRippleMaterial.uniforms.uFlow.value = breathVelocity;
+    orbTopRippleMaterial.uniforms.uTime.value = t;
+    orbTopRippleMaterial.uniforms.uTilt.value.set(tiltY * 4.8, tiltX * 4.8);
+    orbTopRippleMaterial.uniforms.uSourceUv.value.set(0, 0);
+    orbOuterCarrierMaterial.uniforms.uBreath.value = breathFill + inhale * 0.45 - exhale * 0.18;
+    orbOuterCarrierMaterial.uniforms.uTime.value = t;
+    orbOuterCarrierMaterial.uniforms.uMotion.value = motionTrailRef.current;
+    orbOuterCarrierMaterial.uniforms.uFlow.value = breathVelocity;
+    orbOuterCarrierMaterial.uniforms.uSource.value = sourceSpark;
+    orbOuterCarrierMaterial.uniforms.uCenter.value = centerSpark;
     coreBodyMaterial.uniforms.uPulse.value = membranePulse;
     coreBodyMaterial.uniforms.uSource.value = sourceSpark;
     coreBodyMaterial.uniforms.uCenter.value = centerSpark;
@@ -771,9 +1478,12 @@ export default function PulseScene({ bridge }: Props) {
     coreMembraneMaterial.thickness = 3.18 + breathFill * 0.14 + orbResponse * 0.08;
 
     const orbParticleMaterial = orbParticlesRef.current.material as THREE.ShaderMaterial;
+    const orbBubbleMaterial = orbBubblesRef.current.material as THREE.ShaderMaterial;
     const coreParticleMaterial = coreParticlesRef.current.material as THREE.ShaderMaterial;
     orbParticleMaterial.uniforms.uOpacity.value =
       0.014 + orbResponse * 0.05 + sourceSpark * 0.02 + inhale * 0.014;
+    orbBubbleMaterial.uniforms.uOpacity.value =
+      Math.pow(motionTrailRef.current, 0.8) * 1.56;
     coreParticleMaterial.uniforms.uOpacity.value =
       0.004 + sourceSpark * 0.12;
 
@@ -804,6 +1514,71 @@ export default function PulseScene({ bridge }: Props) {
       orbParticlePositionsRef.current[o + 2] = pz + Math.cos(angle * 0.42) * 0.002;
     }
     orbPositionAttr.needsUpdate = true;
+
+    const orbBubblePositionAttr = orbBubblesRef.current.geometry
+      .attributes.position as THREE.BufferAttribute;
+    const orbBubbleAlphaAttr = orbBubblesRef.current.geometry
+      .attributes.aAlpha as THREE.BufferAttribute;
+    for (let i = 0; i < orbBubbleField.phase.length; i++) {
+      const o = i * 3;
+      const bx = orbBubbleField.base[o];
+      const by = orbBubbleField.base[o + 1];
+      const bz = orbBubbleField.base[o + 2];
+      const phase = orbBubbleField.phase[i];
+      const sway = orbBubbleField.sway[i];
+      const angle = t * (0.16 + sway * 0.08) + phase;
+      const bubbleRadius = Math.sqrt(bx * bx + by * by + bz * bz);
+      const baseAngle = Math.atan2(bz, bx);
+      const baseElevation = Math.asin(by / Math.max(0.001, bubbleRadius));
+      const life = t * (0.085 + sway * 0.04) + phase * 0.31;
+      const cycle = Math.floor(life);
+      const cycleT = life - cycle;
+      const cycleSeed = Math.sin((i + 1) * 45.137 + Math.floor(t * 0.2 + phase) * 91.713) * 43758.5453;
+      const cycleFrac = cycleSeed - Math.floor(cycleSeed);
+      const pathProgress = THREE.MathUtils.smootherstep(cycleT, 0, 1);
+      const orbitFlow = bubbleOrbitFlowRef.current * (0.82 + sway * 0.18);
+      const arcSpan =
+        (1.24 + cycleFrac * 1.52) * motionTrailRef.current + Math.abs(orbitFlow) * 0.22;
+      const orbitLead =
+        (motionTrailRef.current * 0.22 + Math.abs(orbitFlow) * 0.18) *
+        spinDirectionRef.current;
+      const orbitAngle =
+        baseAngle + orbitLead + orbitFlow + spinDirectionRef.current * pathProgress * arcSpan;
+      const elevationDir = Math.sign(Math.sin(phase * 1.7 + cycle * 1.3) || 1);
+      const elevationSpan = (0.18 + cycleFrac * 0.18) * motionTrailRef.current * elevationDir;
+      const elevationBias = THREE.MathUtils.clamp(baseElevation * 0.58 + elevationDir * 0.12, -0.86, 0.86);
+      const elevation = THREE.MathUtils.clamp(
+        elevationBias + (pathProgress - 0.5) * elevationSpan + Math.sin(angle * 0.52) * motionTrailRef.current * 0.025,
+        -0.98,
+        0.98
+      );
+      const radialPulse = Math.sin(angle * 0.54 + phase * 0.7) * motionTrailRef.current * 0.03;
+      const sphereRadius = THREE.MathUtils.clamp(
+        bubbleRadius + radialPulse + THREE.MathUtils.lerp(-0.02, 0.05, cycleFrac),
+        0.48,
+        0.84
+      );
+      const px = Math.cos(orbitAngle) * Math.cos(elevation) * sphereRadius;
+      const pz = Math.sin(orbitAngle) * Math.cos(elevation) * sphereRadius;
+      const py = Math.sin(elevation) * sphereRadius;
+      const gateSeed = Math.sin((cycle + 1) * 12.9898 + (i + 1) * 78.233) * 43758.5453;
+      const gateFrac = gateSeed - Math.floor(gateSeed);
+      const visibleThisCycle = gateFrac > 0.12 ? 1 : 0;
+      const envelope =
+        THREE.MathUtils.smoothstep(cycleT, 0.01, 0.08) *
+        (1 - THREE.MathUtils.smoothstep(cycleT, 0.92, 0.995));
+      const burst = THREE.MathUtils.lerp(0.96, 1.62, gateFrac);
+      const bubbleVisibility =
+        motionTrailRef.current * visibleThisCycle * envelope * burst;
+
+      orbBubblePositionsRef.current[o] = px + tiltY * 0.006;
+      orbBubblePositionsRef.current[o + 1] = py;
+      orbBubblePositionsRef.current[o + 2] = pz - tiltX * 0.005;
+      orbBubbleAlphaRef.current[i] =
+        orbBubbleField.alpha[i] * bubbleVisibility;
+    }
+    orbBubblePositionAttr.needsUpdate = true;
+    orbBubbleAlphaAttr.needsUpdate = true;
 
     const corePositionAttr = coreParticlesRef.current.geometry
       .attributes.position as THREE.BufferAttribute;
@@ -874,7 +1649,43 @@ export default function PulseScene({ bridge }: Props) {
       />
 
       <group ref={pulseUnitRef}>
-        <mesh ref={orbShellRef} geometry={orbShellGeometry}>
+        <mesh ref={orbMediumRef} geometry={orbShellGeometry} renderOrder={1}>
+          <shaderMaterial
+            uniforms={orbMediumUniforms}
+            vertexShader={VOLUME_VERTEX_SHADER}
+            fragmentShader={ORB_MEDIUM_FRAGMENT_SHADER}
+            transparent
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        <mesh ref={orbTopRippleRef} geometry={topSurfaceRippleGeometry} renderOrder={2}>
+          <shaderMaterial
+            uniforms={orbTopRippleUniforms}
+            vertexShader={MENISCUS_TOP_RIPPLE_VERTEX_SHADER}
+            fragmentShader={MENISCUS_TOP_RIPPLE_FRAGMENT_SHADER}
+            transparent
+            depthWrite={false}
+            depthTest
+            side={THREE.DoubleSide}
+            blending={THREE.NormalBlending}
+          />
+        </mesh>
+
+        <mesh ref={orbOuterCarrierRef} geometry={orbShellGeometry} renderOrder={3}>
+          <shaderMaterial
+            uniforms={orbOuterCarrierUniforms}
+            vertexShader={VOLUME_VERTEX_SHADER}
+            fragmentShader={ORB_OUTER_CARRIER_FRAGMENT_SHADER}
+            transparent
+            depthWrite={false}
+            blending={THREE.NormalBlending}
+            side={THREE.FrontSide}
+          />
+        </mesh>
+
+        <mesh ref={orbShellRef} geometry={orbShellGeometry} renderOrder={4}>
           <shaderMaterial
             uniforms={orbShellUniforms}
             vertexShader={VOLUME_VERTEX_SHADER}
@@ -893,6 +1704,18 @@ export default function PulseScene({ bridge }: Props) {
             transparent
             depthWrite={false}
             blending={THREE.AdditiveBlending}
+          />
+        </points>
+
+        <points ref={orbBubblesRef} geometry={orbBubbleGeometry} renderOrder={3}>
+          <shaderMaterial
+            uniforms={orbBubbleUniforms}
+            vertexShader={BUBBLE_VERTEX_SHADER}
+            fragmentShader={BUBBLE_FRAGMENT_SHADER}
+            transparent
+            depthWrite={false}
+            depthTest
+            blending={THREE.NormalBlending}
           />
         </points>
 
@@ -972,3 +1795,10 @@ export default function PulseScene({ bridge }: Props) {
     </>
   );
 }
+
+
+
+
+
+
+
