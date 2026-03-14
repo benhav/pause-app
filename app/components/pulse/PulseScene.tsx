@@ -565,6 +565,14 @@ const MENISCUS_TOP_RIPPLE_FRAGMENT_SHADER = `
 uniform float uPulse;
 uniform float uPulseTravel;
 uniform float uImpact;
+uniform float uPlopProgress;
+uniform float uPlopImpact;
+uniform float uCarryProgress;
+uniform float uCarryImpact;
+uniform float uEdgeMemoryProgress;
+uniform float uEdgeMemory;
+uniform float uSettleProgress;
+uniform float uSettleImpact;
 uniform float uBreath;
 uniform float uFlow;
 uniform float uTime;
@@ -582,17 +590,25 @@ void main() {
   float rim = 1.0 - ndv;
   float baseRadius = length(vRippleUv);
   vec2 sourceDelta = vRippleUv - uSourceUv;
-  float topRadius = length(vec2(sourceDelta.x, sourceDelta.y * 0.7));
+  float topRadius = length(sourceDelta);
   float rippleAngle = atan(vRippleUv.y - uSourceUv.y, vRippleUv.x - uSourceUv.x);
   float topMask = 1.0 - smoothstep(0.94, 1.08, baseRadius);
   if (topMask < 0.002) discard;
 
   float beat = clamp(uImpact, 0.0, 1.0);
   float travel = clamp(uPulseTravel, 0.0, 1.0);
+  float plopBeat = clamp(uPlopImpact, 0.0, 1.0);
+  float plopTravel = clamp(uPlopProgress, 0.0, 1.0);
+  float carryTravel = clamp(uCarryProgress, 0.0, 1.0);
+  float carryBeat = clamp(uCarryImpact, 0.0, 1.0);
+  float edgeMemoryTravel = clamp(uEdgeMemoryProgress, 0.0, 1.0);
+  float edgeMemory = clamp(uEdgeMemory, 0.0, 1.0);
+  float settleTravel = clamp(uSettleProgress, 0.0, 1.0);
+  float settleImpact = clamp(uSettleImpact, 0.0, 1.0);
   float edgeBand = smoothstep(0.9, 0.995, baseRadius) * (1.0 - smoothstep(1.0, 1.06, baseRadius));
   float centerMask = (1.0 - smoothstep(0.0, 0.2, topRadius)) * topMask;
   float centerTight = (1.0 - smoothstep(0.0, 0.065, topRadius)) * topMask;
-  float centerLipRadius = mix(0.02, 0.062, smoothstep(0.06, 0.28, travel));
+  float centerLipRadius = mix(0.02, 0.062, smoothstep(0.06, 0.28, plopTravel));
   float centerLip = (1.0 - smoothstep(0.006, 0.026, abs(topRadius - centerLipRadius))) * centerMask;
   float centerOuterLipRadius = centerLipRadius * 1.6;
   float centerOuterLip = (1.0 - smoothstep(0.012, 0.036, abs(topRadius - centerOuterLipRadius))) * centerMask;
@@ -600,28 +616,84 @@ void main() {
 
   float edgeSeedA = 0.5 + 0.5 * cos(baseRadius * 42.0 - uTime * 0.4 + uFlow * 0.02);
   float edgeSeedB = 0.5 + 0.5 * cos(baseRadius * 64.0 + uTime * 0.34 - uFlow * 0.02);
-  float edgePreludeBand = smoothstep(0.82, 0.98, baseRadius) * (1.0 - smoothstep(0.99, 1.07, baseRadius)) * topMask;
-  float edgePrelude = (1.0 - smoothstep(0.02, 0.18, travel)) * beat * edgePreludeBand;
-  float edgeTouch = pow(edgeArrival, 1.25);
+  float edgePreludeBand = smoothstep(0.75, 0.97, baseRadius) * (1.0 - smoothstep(0.995, 1.085, baseRadius)) * topMask;
+  float edgePrelude = (1.0 - smoothstep(0.02, 0.2, plopTravel)) * plopBeat * edgePreludeBand;
+  float edgeTouch = pow(edgeArrival, 1.18);
+  float edgeWake = smoothstep(0.58, 1.0, travel) * exp(-pow((mix(0.06, 1.12, travel) - 1.02) / 0.18, 2.0)) * beat * topMask;
+  float edgeHit = smoothstep(0.84, 1.0, travel) * exp(-pow((mix(0.06, 1.12, travel) - 1.01) / 0.11, 2.0)) * beat * topMask;
+  float edgeWakeLong = smoothstep(0.78, 1.0, travel) * exp(-pow((mix(0.06, 1.12, travel) - 1.015) / 0.2, 2.0)) * beat * topMask;
+  float edgeReturnEnvelope = edgeMemory * exp(-pow((edgeMemoryTravel - 0.34) / 0.44, 2.0));
+  float settleEnvelope = settleImpact * exp(-pow((settleTravel - 0.42) / 0.56, 2.0));
+  float settlePulseA = 0.5 + 0.5 * sin(rippleAngle * 7.0 + uTime * 0.82 + settleTravel * 9.0);
+  float settlePulseB = 0.5 + 0.5 * sin(rippleAngle * 12.0 - uTime * 0.54 + settleTravel * 13.0);
+  float edgeReturnPulseA = 0.5 + 0.5 * sin(rippleAngle * 10.0 + uTime * 1.15 + edgeMemoryTravel * 10.0);
+  float edgeReturnPulseB = 0.5 + 0.5 * sin(rippleAngle * 17.0 - uTime * 0.72 + edgeMemoryTravel * 16.0);
+  float edgeReturn =
+    edgeBand *
+    topMask *
+    edgeReturnEnvelope *
+    (0.42 + edgeReturnPulseA * 0.34 + edgeReturnPulseB * 0.24);
+  float edgeWholeRing =
+    edgeBand *
+    topMask *
+    (edgeTouch * 0.18 + edgeWake * 0.18 + edgeHit * 0.34 + edgeWakeLong * 0.58 + edgeReturn * 0.94);
+  float edgeSettleBand =
+    edgeBand *
+    topMask *
+    (edgeWakeLong * 0.34 + edgeReturnEnvelope * 0.8 + settleEnvelope * 1.05);
+  float returnRingRadius = mix(1.01, 0.72, edgeMemoryTravel);
+  float returnRingCrest = exp(-pow((topRadius - returnRingRadius) / 0.08, 2.0)) * edgeReturnEnvelope * topMask;
+  float returnRingTrough = exp(-pow((topRadius - (returnRingRadius + 0.056)) / 0.12, 2.0)) * edgeReturnEnvelope * topMask;
+  float settleRingRadius = mix(1.03, 0.62, settleTravel);
+  float settleRingCrest =
+    exp(-pow((topRadius - settleRingRadius) / 0.1, 2.0)) *
+    settleEnvelope *
+    topMask *
+    (0.72 + settlePulseA * 0.18 + settlePulseB * 0.1);
+  float settleRingTrough =
+    exp(-pow((topRadius - (settleRingRadius + 0.074)) / 0.15, 2.0)) *
+    settleEnvelope *
+    topMask;
+  float settlePerimeter =
+    edgeBand *
+    topMask *
+    settleEnvelope *
+    (0.54 + settlePulseA * 0.22 + settlePulseB * 0.16);
+  float edgeMemoryTremor =
+    (pow(edgeSeedA, 4.0) * 0.24 + pow(edgeSeedB, 4.0) * 0.1) *
+    edgeBand *
+    topMask *
+    edgeReturn *
+    0.72;
   float edgeTremor =
-    (pow(edgeSeedA, 4.0) * 0.32 + pow(edgeSeedB, 4.0) * 0.12) *
+    (pow(edgeSeedA, 4.0) * 0.28 + pow(edgeSeedB, 4.0) * 0.11) *
     edgeBand *
     beat *
     topMask *
-    edgeTouch;
-  float edgeWake = smoothstep(0.58, 1.0, travel) * exp(-pow((mix(0.06, 1.12, travel) - 1.02) / 0.18, 2.0)) * beat * topMask;
-  float edgeHit = smoothstep(0.84, 1.0, travel) * exp(-pow((mix(0.06, 1.12, travel) - 1.01) / 0.11, 2.0)) * beat * topMask;
+    (edgeTouch * 0.58 + edgeWake * 0.34 + edgeHit * 0.48 + edgeWakeLong * 0.54 + edgeReturn * 0.46);
+  edgeTremor += edgeMemoryTremor;
+  edgeTremor += settlePerimeter * 0.18;
+  float edgeMemorySlosh =
+    (0.5 + 0.5 * sin(rippleAngle * 10.0 + uTime * 0.9 + baseRadius * 24.0)) *
+    edgeBand *
+    topMask *
+    edgeReturn *
+    0.96;
   float edgeSlosh =
     (0.5 + 0.5 * sin(rippleAngle * 10.0 + uTime * 0.9 + baseRadius * 24.0)) *
     edgeBand *
-    (edgeTouch * 0.42 + edgeWake * 0.62 + edgeHit * 1.08) *
+    (edgeTouch * 0.16 + edgeWake * 0.44 + edgeHit * 0.82 + edgeWakeLong * 1.18 + edgeReturn * 1.38) *
     beat *
     topMask;
+  edgeSlosh += edgeMemorySlosh;
+  edgeSlosh += settlePerimeter * 0.32;
+  float edgeWholeRingGlow = edgeWholeRing * (0.66 + 0.34 * sin(uTime * 0.62 + baseRadius * 20.0));
+  float edgeWholeRingShade = edgeSettleBand * (0.62 + 0.38 * cos(uTime * 0.58 + baseRadius * 17.0));
 
-  float dipPhase = 1.0 - smoothstep(0.0, 0.16, travel);
-  float reboundPhase = smoothstep(0.05, 0.18, travel) * (1.0 - smoothstep(0.22, 0.42, travel));
-  float centerDip = centerMask * dipPhase * beat;
-  float centerPlop = (centerTight * reboundPhase * 0.66 + centerLip * reboundPhase * 1.05 + centerOuterLip * reboundPhase * 0.34) * beat;
+  float dipPhase = 1.0 - smoothstep(0.0, 0.16, plopTravel);
+  float reboundPhase = smoothstep(0.05, 0.18, plopTravel) * (1.0 - smoothstep(0.22, 0.42, plopTravel));
+  float centerDip = centerMask * dipPhase * plopBeat;
+  float centerPlop = (centerTight * reboundPhase * 0.66 + centerLip * reboundPhase * 1.05 + centerOuterLip * reboundPhase * 0.34) * plopBeat;
 
   float ringRadius = mix(0.04, 1.12, travel);
   float ringCrest = exp(-pow((topRadius - ringRadius) / 0.052, 2.0));
@@ -635,6 +707,13 @@ void main() {
   float thirdRadius = max(0.02, ringRadius - 0.44);
   float thirdCrest = exp(-pow((topRadius - thirdRadius) / 0.084, 2.0));
   float thirdTrough = exp(-pow((topRadius - (thirdRadius + 0.062)) / 0.116, 2.0));
+  float carryRadius = mix(0.08, 1.08, carryTravel);
+  float carryCrest = exp(-pow((topRadius - carryRadius) / 0.074, 2.0));
+  float carryTrough = exp(-pow((topRadius - (carryRadius + 0.052)) / 0.11, 2.0));
+  float carryReturnPhase = smoothstep(0.7, 1.0, carryTravel);
+  float carryReturnRadius = mix(1.02, 0.7, carryReturnPhase);
+  float carryReturnCrest = exp(-pow((topRadius - carryReturnRadius) / 0.09, 2.0));
+  float carryReturnTrough = exp(-pow((topRadius - (carryReturnRadius + 0.06)) / 0.13, 2.0));
   float outwardRing = ringCrest * smoothstep(0.05, 1.0, travel) * beat * topMask;
   float outwardRingShadow = ringTrough * smoothstep(0.05, 1.0, travel) * beat * topMask;
   float outwardTrail = trailCrest * smoothstep(0.12, 1.0, travel) * beat * topMask;
@@ -643,6 +722,10 @@ void main() {
   float outwardSecondShadow = secondTrough * smoothstep(0.18, 0.92, travel) * beat * topMask * 0.74;
   float outwardThird = thirdCrest * smoothstep(0.26, 0.82, travel) * beat * topMask * 0.34;
   float outwardThirdShadow = thirdTrough * smoothstep(0.26, 0.82, travel) * beat * topMask * 0.34;
+  float carryRing = carryCrest * carryBeat * topMask * 0.82;
+  float carryRingShadow = carryTrough * carryBeat * topMask * 0.62;
+  float carryReturnRing = carryReturnCrest * carryBeat * carryReturnPhase * topMask * 0.78;
+  float carryReturnShadow = carryReturnTrough * carryBeat * carryReturnPhase * topMask * 0.52;
   float bubbleSeedA = 0.5 + 0.5 * sin(rippleAngle * 18.0 + uTime * 1.8 + topRadius * 22.0);
   float bubbleSeedB = 0.5 + 0.5 * sin(rippleAngle * 31.0 - uTime * 1.2 + topRadius * 36.0);
   float edgeMicroBubbles = (pow(bubbleSeedA, 8.0) * 0.08 + pow(bubbleSeedB, 10.0) * 0.04) * edgeBand * (edgeTouch * 0.08 + edgeWake * 0.05 + edgeHit * 0.04) * topMask;
@@ -652,18 +735,27 @@ void main() {
     outwardSecond * 0.74 +
     outwardThird * 0.52 +
     centerPlop * 1.02 +
-    centerLip * reboundPhase * beat * 0.86 +
+    centerLip * reboundPhase * plopBeat * 0.86 +
     edgeSlosh * 0.18
   );
 
   vec3 color = vec3(0.0);
-  color += vec3(0.02, 0.045, 0.09) * edgePrelude * 0.88;
-  color += vec3(0.94, 0.99, 1.0) * edgeTremor * (0.28 + edgeTouch * 0.48 + edgeWake * 0.18 + edgeHit * 0.62);
-  color += vec3(0.94, 0.99, 1.0) * edgeSlosh * (0.12 + edgeTouch * 0.28 + edgeWake * 0.18 + edgeHit * 1.04);
+  color += vec3(0.03, 0.05, 0.095) * edgePrelude * 0.74;
+  color += vec3(0.94, 0.99, 1.0) * edgePrelude * 0.18;
+  color += vec3(0.82, 0.93, 1.0) * edgeReturn * 0.22;
+  color += vec3(0.9, 0.97, 1.0) * returnRingCrest * 1.62;
+  color += vec3(0.02, 0.045, 0.09) * returnRingTrough * 0.94;
+  color += vec3(0.94, 0.99, 1.0) * edgeTremor * (0.34 + edgeTouch * 0.28 + edgeWake * 0.14 + edgeHit * 0.18 + edgeWakeLong * 0.18);
+  color += vec3(0.94, 0.99, 1.0) * edgeSlosh * (0.08 + edgeTouch * 0.08 + edgeWake * 0.24 + edgeHit * 0.42 + edgeWakeLong * 0.86);
+  color += vec3(0.9, 0.97, 1.0) * edgeWholeRingGlow * 0.32;
+  color += vec3(0.02, 0.04, 0.078) * edgeWholeRingShade * 0.18;
+  color += vec3(0.86, 0.95, 1.0) * settleRingCrest * 1.42;
+  color += vec3(0.02, 0.04, 0.078) * settleRingTrough * 0.64;
+  color += vec3(0.9, 0.97, 1.0) * settlePerimeter * 0.18;
   color += vec3(0.028, 0.064, 0.13) * centerDip * 3.4;
   color += vec3(1.0, 1.0, 1.0) * centerPlop * 3.28;
-  color += vec3(0.94, 0.99, 1.0) * centerLip * reboundPhase * beat * 1.92;
-  color += vec3(0.92, 0.98, 1.0) * centerOuterLip * reboundPhase * beat * 0.72;
+  color += vec3(0.94, 0.99, 1.0) * centerLip * reboundPhase * plopBeat * 1.92;
+  color += vec3(0.92, 0.98, 1.0) * centerOuterLip * reboundPhase * plopBeat * 0.72;
   color += vec3(1.0, 1.0, 1.0) * outwardRing * 8.9;
   color += vec3(0.02, 0.045, 0.095) * outwardRingShadow * 3.3;
   color += vec3(0.92, 0.98, 1.0) * outwardTrail * 5.2;
@@ -672,17 +764,29 @@ void main() {
   color += vec3(0.025, 0.05, 0.09) * outwardSecondShadow * 1.5;
   color += vec3(0.84, 0.94, 1.0) * outwardThird * 2.4;
   color += vec3(0.022, 0.042, 0.082) * outwardThirdShadow * 0.98;
+  color += vec3(0.92, 0.98, 1.0) * carryRing * 2.18;
+  color += vec3(0.024, 0.046, 0.084) * carryRingShadow * 1.06;
+  color += vec3(0.86, 0.95, 1.0) * carryReturnRing * 1.84;
+  color += vec3(0.02, 0.04, 0.078) * carryReturnShadow * 0.96;
   color += vec3(0.99, 1.0, 1.0) * edgeMicroBubbles * 0.18;
   color += vec3(1.0, 1.0, 1.0) * waterSpec * 3.1;
 
   float alpha = 0.0;
-  alpha += edgePrelude * 0.03;
-  alpha += edgeTremor * (0.018 + edgeTouch * 0.038 + edgeWake * 0.018 + edgeHit * 0.038);
-  alpha += edgeSlosh * (0.01 + edgeTouch * 0.026 + edgeWake * 0.018 + edgeHit * 0.058);
+  alpha += edgePrelude * 0.044;
+  alpha += edgeReturn * 0.016;
+  alpha += returnRingCrest * 0.1;
+  alpha += returnRingTrough * 0.034;
+  alpha += edgeTremor * (0.018 + edgeTouch * 0.02 + edgeWake * 0.01 + edgeHit * 0.014 + edgeWakeLong * 0.016);
+  alpha += edgeSlosh * (0.008 + edgeTouch * 0.008 + edgeWake * 0.016 + edgeHit * 0.026 + edgeWakeLong * 0.042);
+  alpha += edgeWholeRingGlow * 0.018;
+  alpha += edgeWholeRingShade * 0.008;
+  alpha += settleRingCrest * 0.14;
+  alpha += settleRingTrough * 0.042;
+  alpha += settlePerimeter * 0.026;
   alpha += centerDip * 0.62;
   alpha += centerPlop * 0.82;
-  alpha += centerLip * reboundPhase * beat * 0.48;
-  alpha += centerOuterLip * reboundPhase * beat * 0.16;
+  alpha += centerLip * reboundPhase * plopBeat * 0.48;
+  alpha += centerOuterLip * reboundPhase * plopBeat * 0.16;
   alpha += outwardRing * 1.42;
   alpha += outwardRingShadow * 0.42;
   alpha += outwardTrail * 0.96;
@@ -691,6 +795,10 @@ void main() {
   alpha += outwardSecondShadow * 0.21;
   alpha += outwardThird * 0.38;
   alpha += outwardThirdShadow * 0.12;
+  alpha += carryRing * 0.44;
+  alpha += carryRingShadow * 0.14;
+  alpha += carryReturnRing * 0.34;
+  alpha += carryReturnShadow * 0.11;
   alpha += edgeMicroBubbles * 0.01;
   alpha += waterSpec * 0.36;
   alpha *= clamp(0.48 + (1.0 - ndv) * 0.52, 0.0, 1.0);
@@ -706,6 +814,14 @@ const MENISCUS_TOP_RIPPLE_VERTEX_SHADER = `
 uniform float uPulse;
 uniform float uPulseTravel;
 uniform float uImpact;
+uniform float uPlopProgress;
+uniform float uPlopImpact;
+uniform float uCarryProgress;
+uniform float uCarryImpact;
+uniform float uEdgeMemoryProgress;
+uniform float uEdgeMemory;
+uniform float uSettleProgress;
+uniform float uSettleImpact;
 uniform float uBreath;
 uniform float uFlow;
 uniform float uTime;
@@ -716,13 +832,13 @@ varying vec3 vWorldPos;
 varying vec3 vLocalPos;
 varying vec2 vRippleUv;
 
-vec3 sampleSurface(vec2 plate, float beat, float travel) {
+vec3 sampleSurface(vec2 plate, float beat, float travel, float plopBeat, float plopTravel) {
   float surfaceX = plate.x * 0.98;
   float surfaceZ = plate.y * 0.56;
   vec2 rippleUv = vec2(surfaceX / 0.61, surfaceZ / 0.3);
   float baseRadius = length(rippleUv);
   vec2 sourceDelta = rippleUv - uSourceUv;
-  float topRadius = length(vec2(sourceDelta.x, sourceDelta.y * 0.7));
+  float topRadius = length(sourceDelta);
   float inhaleBias = max(uBreath, 0.0);
   float exhaleBias = max(-uBreath, 0.0);
   float centerProfile = 1.0 - smoothstep(0.0, 0.78, baseRadius);
@@ -740,13 +856,13 @@ vec3 sampleSurface(vec2 plate, float beat, float travel) {
   float topPlateMask = 1.0 - smoothstep(0.94, 1.08, baseRadius);
   float centerMask = (1.0 - smoothstep(0.0, 0.2, topRadius)) * topPlateMask;
   float centerTight = (1.0 - smoothstep(0.0, 0.06, topRadius)) * topPlateMask;
-  float centerLipRadius = mix(0.02, 0.062, smoothstep(0.06, 0.28, travel));
+  float centerLipRadius = mix(0.02, 0.062, smoothstep(0.06, 0.28, plopTravel));
   float centerLip = (1.0 - smoothstep(0.006, 0.026, abs(topRadius - centerLipRadius))) * centerMask;
   float centerOuterLipRadius = centerLipRadius * 1.6;
   float centerOuterLip = (1.0 - smoothstep(0.012, 0.036, abs(topRadius - centerOuterLipRadius))) * centerMask;
 
-  float dipPhase = 1.0 - smoothstep(0.0, 0.16, travel);
-  float reboundPhase = smoothstep(0.05, 0.18, travel) * (1.0 - smoothstep(0.22, 0.42, travel));
+  float dipPhase = 1.0 - smoothstep(0.0, 0.16, plopTravel);
+  float reboundPhase = smoothstep(0.05, 0.18, plopTravel) * (1.0 - smoothstep(0.22, 0.42, plopTravel));
   float ringRadius = mix(0.04, 1.12, travel);
   float ringCrest = exp(-pow((topRadius - ringRadius) / 0.052, 2.0));
   float ringTrough = exp(-pow((topRadius - (ringRadius + 0.038)) / 0.078, 2.0));
@@ -760,39 +876,88 @@ vec3 sampleSurface(vec2 plate, float beat, float travel) {
   float thirdCrest = exp(-pow((topRadius - thirdRadius) / 0.084, 2.0));
   float thirdTrough = exp(-pow((topRadius - (thirdRadius + 0.062)) / 0.116, 2.0));
 
-  float centerCoreDip = centerTight * dipPhase * beat * 0.028;
-  float centerDip = centerMask * dipPhase * beat * 0.11;
-  float centerRebound = centerMask * reboundPhase * beat * 0.058;
-  float vortexCoreRise = centerTight * reboundPhase * beat * 0.026;
-  float vortexLipRise = centerLip * reboundPhase * beat * 0.036;
-  float vortexOuterLift = centerOuterLip * reboundPhase * beat * 0.014;
+  float centerCoreDip = centerTight * dipPhase * plopBeat * 0.028;
+  float centerDip = centerMask * dipPhase * plopBeat * 0.11;
+  float centerRebound = centerMask * reboundPhase * plopBeat * 0.058;
+  float vortexCoreRise = centerTight * reboundPhase * plopBeat * 0.026;
+  float vortexLipRise = centerLip * reboundPhase * plopBeat * 0.036;
+  float vortexOuterLift = centerOuterLip * reboundPhase * plopBeat * 0.014;
   float plopSpike = vortexCoreRise + vortexLipRise + vortexOuterLift;
   float ringLift = (ringCrest * 0.108 - ringTrough * 0.042) * smoothstep(0.06, 1.0, travel) * beat * topPlateMask;
   float trailLift = (trailCrest * 0.056 - trailTrough * 0.022) * smoothstep(0.12, 1.0, travel) * beat * topPlateMask;
   float secondLift = (secondCrest * 0.032 - secondTrough * 0.012) * smoothstep(0.18, 0.92, travel) * beat * topPlateMask;
   float thirdLift = (thirdCrest * 0.012 - thirdTrough * 0.005) * smoothstep(0.26, 0.82, travel) * beat * topPlateMask;
   float edgeSeed = 0.5 + 0.5 * cos(baseRadius * 54.0 - uTime * 0.44 + uFlow * 0.03);
-  float edgePreludeBand = smoothstep(0.82, 0.98, baseRadius) * (1.0 - smoothstep(0.99, 1.07, baseRadius)) * topPlateMask;
-  float edgePrelude = (1.0 - smoothstep(0.02, 0.18, travel)) * beat * edgePreludeBand;
+  float edgePreludeBand = smoothstep(0.75, 0.97, baseRadius) * (1.0 - smoothstep(0.995, 1.085, baseRadius)) * topPlateMask;
+  float edgePrelude = (1.0 - smoothstep(0.02, 0.2, plopTravel)) * plopBeat * edgePreludeBand;
   float edgeArrival = exp(-pow((ringRadius - 1.02) / 0.14, 2.0));
-  float edgeTouch = pow(edgeArrival, 1.25);
+  float edgeTouch = pow(edgeArrival, 1.18);
   float edgeWake = smoothstep(0.58, 1.0, travel) * exp(-pow((ringRadius - 1.02) / 0.18, 2.0)) * beat * topPlateMask;
   float edgeHit = smoothstep(0.84, 1.0, travel) * exp(-pow((ringRadius - 1.01) / 0.11, 2.0)) * beat * topPlateMask;
-  float edgeTremor = pow(edgeSeed, 4.0) * smoothstep(0.9, 1.0, baseRadius) * topPlateMask * (edgeTouch * (0.0012 + edgeTouch * 0.005) + edgeWake * 0.0026 + edgeHit * 0.0046);
-  float edgeSlosh = (0.5 + 0.5 * sin(atan(sourceDelta.y, sourceDelta.x) * 10.0 + uTime * 0.9 + baseRadius * 24.0)) * smoothstep(0.92, 1.02, baseRadius) * topPlateMask * (edgeTouch * 0.0018 + edgeWake * 0.0016 + edgeHit * 0.0038);
+  float edgeWakeLong = smoothstep(0.78, 1.0, travel) * exp(-pow((ringRadius - 1.015) / 0.2, 2.0)) * beat * topPlateMask;
+  float carryTravel = clamp(uCarryProgress, 0.0, 1.0);
+  float carryBeat = clamp(uCarryImpact, 0.0, 1.0);
+  float edgeMemoryTravel = clamp(uEdgeMemoryProgress, 0.0, 1.0);
+  float edgeMemory = clamp(uEdgeMemory, 0.0, 1.0);
+  float settleTravel = clamp(uSettleProgress, 0.0, 1.0);
+  float settleImpact = clamp(uSettleImpact, 0.0, 1.0);
+  float edgeReturnEnvelope = edgeMemory * exp(-pow((edgeMemoryTravel - 0.34) / 0.44, 2.0));
+  float settleEnvelope = settleImpact * exp(-pow((settleTravel - 0.42) / 0.56, 2.0));
+  float settlePulseA = 0.5 + 0.5 * sin(atan(sourceDelta.y, sourceDelta.x) * 7.0 + uTime * 0.82 + settleTravel * 9.0);
+  float settlePulseB = 0.5 + 0.5 * sin(atan(sourceDelta.y, sourceDelta.x) * 12.0 - uTime * 0.54 + settleTravel * 13.0);
+  float edgeReturn = smoothstep(0.9, 1.02, baseRadius) * topPlateMask * edgeReturnEnvelope;
+  float edgeWholeRing =
+    smoothstep(0.88, 1.01, baseRadius) *
+    topPlateMask *
+    (edgeTouch * 0.16 + edgeWake * 0.16 + edgeHit * 0.26 + edgeWakeLong * 0.46 + edgeReturn * 0.92);
+  float returnRingRadius = mix(1.01, 0.72, edgeMemoryTravel);
+  float returnRingCrest = exp(-pow((topRadius - returnRingRadius) / 0.08, 2.0)) * edgeReturnEnvelope * topPlateMask;
+  float returnRingTrough = exp(-pow((topRadius - (returnRingRadius + 0.056)) / 0.12, 2.0)) * edgeReturnEnvelope * topPlateMask;
+  float carryRadius = mix(0.08, 1.08, carryTravel);
+  float carryCrest = exp(-pow((topRadius - carryRadius) / 0.074, 2.0)) * carryBeat * topPlateMask;
+  float carryTrough = exp(-pow((topRadius - (carryRadius + 0.052)) / 0.11, 2.0)) * carryBeat * topPlateMask;
+  float carryReturnPhase = smoothstep(0.7, 1.0, carryTravel);
+  float carryReturnRadius = mix(1.02, 0.7, carryReturnPhase);
+  float carryReturnCrest = exp(-pow((topRadius - carryReturnRadius) / 0.09, 2.0)) * carryBeat * carryReturnPhase * topPlateMask;
+  float carryReturnTrough = exp(-pow((topRadius - (carryReturnRadius + 0.06)) / 0.13, 2.0)) * carryBeat * carryReturnPhase * topPlateMask;
+  float settleRingRadius = mix(1.03, 0.62, settleTravel);
+  float settleRingCrest =
+    exp(-pow((topRadius - settleRingRadius) / 0.1, 2.0)) *
+    settleEnvelope *
+    topPlateMask *
+    (0.72 + settlePulseA * 0.18 + settlePulseB * 0.1);
+  float settleRingTrough =
+    exp(-pow((topRadius - (settleRingRadius + 0.074)) / 0.15, 2.0)) *
+    settleEnvelope *
+    topPlateMask;
+  float settlePerimeter =
+    smoothstep(0.9, 1.02, baseRadius) *
+    topPlateMask *
+    settleEnvelope *
+    (0.54 + settlePulseA * 0.22 + settlePulseB * 0.16);
+  float edgeTremor = pow(edgeSeed, 4.0) * smoothstep(0.88, 1.0, baseRadius) * topPlateMask * (edgeTouch * 0.0014 + edgeWake * 0.0014 + edgeHit * 0.0018 + edgeWakeLong * 0.0032 + edgeReturn * 0.0028);
+  float edgeSlosh = (0.5 + 0.5 * sin(atan(sourceDelta.y, sourceDelta.x) * 10.0 + uTime * 0.9 + baseRadius * 24.0)) * smoothstep(0.9, 1.02, baseRadius) * topPlateMask * (edgeTouch * 0.0006 + edgeWake * 0.0012 + edgeHit * 0.0018 + edgeWakeLong * 0.0046 + edgeReturn * 0.0064);
+  edgeTremor += settlePerimeter * 0.0022;
+  edgeSlosh += settlePerimeter * 0.0048;
+  float edgeWholeLift = edgeWholeRing * (0.0016 + 0.0007 * sin(uTime * 0.7 + baseRadius * 18.0));
 
-  float surfaceY = meniscusCenter - centerDip - centerCoreDip + centerRebound + plopSpike + ringLift + trailLift + secondLift + thirdLift - edgePrelude * 0.006 + edgeTremor + edgeSlosh;
+  float returnRingLift = (returnRingCrest * 0.032 - returnRingTrough * 0.024);
+  float carryLift = (carryCrest * 0.024 - carryTrough * 0.014) + (carryReturnCrest * 0.018 - carryReturnTrough * 0.012);
+  float settleLift = settleRingCrest * 0.026 - settleRingTrough * 0.016;
+  float surfaceY = meniscusCenter - centerDip - centerCoreDip + centerRebound + plopSpike + ringLift + trailLift + secondLift + thirdLift + carryLift + returnRingLift + settleLift - edgePrelude * 0.008 + edgeTremor + edgeSlosh + edgeWholeLift;
   return vec3(surfaceX, surfaceY, surfaceZ);
 }
 
 void main() {
   float beat = clamp(uImpact, 0.0, 1.0);
   float travel = clamp(uPulseTravel, 0.0, 1.0);
+  float plopBeat = clamp(uPlopImpact, 0.0, 1.0);
+  float plopTravel = clamp(uPlopProgress, 0.0, 1.0);
   vec2 plate = position.xy;
-  vec3 displaced = sampleSurface(plate, beat, travel);
+  vec3 displaced = sampleSurface(plate, beat, travel, plopBeat, plopTravel);
   float eps = 0.005;
-  vec3 displacedX = sampleSurface(plate + vec2(eps, 0.0), beat, travel);
-  vec3 displacedY = sampleSurface(plate + vec2(0.0, eps), beat, travel);
+  vec3 displacedX = sampleSurface(plate + vec2(eps, 0.0), beat, travel, plopBeat, plopTravel);
+  vec3 displacedY = sampleSurface(plate + vec2(0.0, eps), beat, travel, plopBeat, plopTravel);
   vec3 localNormal = normalize(cross(displacedY - displaced, displacedX - displaced));
   vec2 rippleUv = vec2(displaced.x / 0.61, displaced.z / 0.3);
 
@@ -970,7 +1135,23 @@ export default function PulseScene({ bridge }: Props) {
   const pulseSurfaceProgressRef = useRef(1);
   const topRippleProgressRef = useRef(1);
   const topRippleImpactRef = useRef(0);
+  const topPlopProgressRef = useRef(1);
+  const topPlopImpactRef = useRef(0);
+  const topRippleCarryProgressRef = useRef(1);
+  const topRippleCarryImpactRef = useRef(0);
+  const topEdgeMemoryProgressRef = useRef(1);
+  const topEdgeMemoryImpactRef = useRef(0);
+  const topSettleProgressRef = useRef(1);
+  const topSettleImpactRef = useRef(0);
+  const previousTopRippleProgressRef = useRef(1);
   const previousBeatInstantRef = useRef(0);
+  const beatGroupCountRef = useRef(0);
+  const beatGroupPeakRef = useRef(0);
+  const lastBeatTriggerTimeRef = useRef(-Infinity);
+  const pendingHeroRippleRef = useRef(false);
+  const pendingHeroRippleReadyAtRef = useRef(-Infinity);
+  const pendingHeroRippleStrengthRef = useRef(0);
+  const lastHeroRippleTimeRef = useRef(-Infinity);
   const previousSpinRef = useRef(0);
   const previousTiltXRef = useRef(0);
   const previousTiltYRef = useRef(0);
@@ -1009,7 +1190,7 @@ export default function PulseScene({ bridge }: Props) {
     []
   );
   const orbTopRippleUniforms = useMemo(
-    () => ({ uPulse: { value: 0 }, uPulseTravel: { value: 1 }, uImpact: { value: 0 }, uBreath: { value: 0 }, uFlow: { value: 0 }, uTime: { value: 0 }, uTilt: { value: new THREE.Vector2() }, uSourceUv: { value: new THREE.Vector2() } }),
+    () => ({ uPulse: { value: 0 }, uPulseTravel: { value: 1 }, uImpact: { value: 0 }, uPlopProgress: { value: 1 }, uPlopImpact: { value: 0 }, uCarryProgress: { value: 1 }, uCarryImpact: { value: 0 }, uEdgeMemoryProgress: { value: 1 }, uEdgeMemory: { value: 0 }, uSettleProgress: { value: 1 }, uSettleImpact: { value: 0 }, uBreath: { value: 0 }, uFlow: { value: 0 }, uTime: { value: 0 }, uTilt: { value: new THREE.Vector2() }, uSourceUv: { value: new THREE.Vector2() } }),
     []
   );
   const orbOuterCarrierUniforms = useMemo(
@@ -1241,24 +1422,145 @@ export default function PulseScene({ bridge }: Props) {
     restLightRef.current = THREE.MathUtils.lerp(restLightRef.current, targetRest, 0.12);
     const beatNorm = beat / 1.2;
     const beatInstant = clamp01((beat - 0.06) / 0.42);
-    if (beatInstant > 0.22 && previousBeatInstantRef.current <= 0.22) {
-      pulseSurfaceProgressRef.current = 0;
-      topRippleProgressRef.current = 0;
-      topRippleImpactRef.current = 1;
-    } else {
-      pulseSurfaceProgressRef.current = Math.min(
-        1,
-        pulseSurfaceProgressRef.current + dt * (1.85 + beatInstant * 1.4)
+    const previousTopRippleProgress = previousTopRippleProgressRef.current;
+    const beatTriggered = beatInstant > 0.22 && previousBeatInstantRef.current <= 0.22;
+    const beatGroupWindow = 0.26;
+    const beatGroupSettle = 0.18;
+    const heroRippleCooldown = 0.9;
+    const heroRippleRestartProgressGate = 0.84;
+    const heroRippleRestartImpactGate = 0.22;
+    if (beatTriggered) {
+      const sameGroup = t - lastBeatTriggerTimeRef.current <= beatGroupWindow;
+      beatGroupCountRef.current = sameGroup ? beatGroupCountRef.current + 1 : 1;
+      beatGroupPeakRef.current = sameGroup
+        ? Math.max(beatGroupPeakRef.current, beatInstant)
+        : beatInstant;
+      lastBeatTriggerTimeRef.current = t;
+      pendingHeroRippleRef.current = true;
+      pendingHeroRippleReadyAtRef.current = t + beatGroupSettle;
+      pendingHeroRippleStrengthRef.current = Math.max(
+        pendingHeroRippleStrengthRef.current,
+        0.72 + beatInstant * 0.28
       );
-      topRippleProgressRef.current = Math.min(
+
+      topPlopProgressRef.current = 0;
+      topPlopImpactRef.current = Math.min(
         1,
-        topRippleProgressRef.current + dt * 0.17
+        Math.max(topPlopImpactRef.current * 0.82, 0.7 + beatInstant * 0.3)
       );
     }
+
+    if (
+      pendingHeroRippleRef.current &&
+      t >= pendingHeroRippleReadyAtRef.current &&
+      t - lastBeatTriggerTimeRef.current >= beatGroupSettle
+    ) {
+      const rippleHasSettledEnough =
+        topRippleProgressRef.current >= heroRippleRestartProgressGate ||
+        topRippleImpactRef.current <= heroRippleRestartImpactGate;
+      const settleHasSettledEnough =
+        topSettleImpactRef.current <= 0.16 ||
+        topSettleProgressRef.current >= 0.9;
+      if (
+        t - lastHeroRippleTimeRef.current >= heroRippleCooldown &&
+        rippleHasSettledEnough &&
+        settleHasSettledEnough
+      ) {
+        if (topRippleImpactRef.current > 0.08 && topRippleProgressRef.current < 0.98) {
+          topRippleCarryProgressRef.current = topRippleProgressRef.current;
+          topRippleCarryImpactRef.current = Math.min(
+            1,
+            Math.max(
+              topRippleCarryImpactRef.current * 0.74,
+              topRippleImpactRef.current * 0.9,
+              topSettleImpactRef.current * 0.5
+            )
+          );
+        }
+        pulseSurfaceProgressRef.current = 0;
+        topRippleProgressRef.current = 0;
+        topRippleImpactRef.current = Math.min(
+          1,
+          Math.max(
+            topRippleImpactRef.current * 0.55,
+            pendingHeroRippleStrengthRef.current *
+              (beatGroupCountRef.current > 1 ? 1.0 : 0.92)
+          )
+        );
+        lastHeroRippleTimeRef.current = t;
+        pendingHeroRippleRef.current = false;
+        pendingHeroRippleStrengthRef.current = 0;
+        beatGroupCountRef.current = 0;
+        beatGroupPeakRef.current = 0;
+      } else {
+        topRippleImpactRef.current = Math.min(
+          1,
+          topRippleImpactRef.current + dt * pendingHeroRippleStrengthRef.current * 0.08
+        );
+      }
+    }
+
+    pulseSurfaceProgressRef.current = Math.min(
+      1,
+      pulseSurfaceProgressRef.current + dt * (1.62 + beatInstant * 1.12)
+    );
+    topRippleProgressRef.current = Math.min(
+      1,
+      topRippleProgressRef.current + dt * 0.14
+    );
+    topPlopProgressRef.current = Math.min(
+      1,
+      topPlopProgressRef.current + dt * 0.36
+    );
+    topRippleCarryProgressRef.current = Math.min(
+      1,
+      topRippleCarryProgressRef.current + dt * 0.1
+    );
+    if (
+      previousTopRippleProgress < 0.9 &&
+      topRippleProgressRef.current >= 0.9 &&
+      topRippleImpactRef.current > 0.16
+    ) {
+      topEdgeMemoryProgressRef.current = 0;
+      topEdgeMemoryImpactRef.current = Math.min(
+        1,
+        Math.max(topEdgeMemoryImpactRef.current * 0.72, topRippleImpactRef.current * 1.02)
+      );
+      topSettleProgressRef.current = 0;
+      topSettleImpactRef.current = Math.min(
+        1,
+        Math.max(topSettleImpactRef.current * 0.82, topRippleImpactRef.current * 0.98)
+      );
+    }
+    topEdgeMemoryProgressRef.current = Math.min(
+      1,
+      topEdgeMemoryProgressRef.current + dt * 0.13
+    );
+    topSettleProgressRef.current = Math.min(
+      1,
+      topSettleProgressRef.current + dt * 0.085
+    );
     topRippleImpactRef.current = Math.max(
       0,
-      topRippleImpactRef.current - dt * 0.2
+      topRippleImpactRef.current - dt * 0.16
     );
+    topPlopImpactRef.current = Math.max(
+      0,
+      topPlopImpactRef.current - dt * 0.72
+    );
+    topRippleCarryImpactRef.current = Math.max(
+      0,
+      topRippleCarryImpactRef.current - dt * 0.08
+    );
+    topEdgeMemoryImpactRef.current = Math.max(
+      0,
+      topEdgeMemoryImpactRef.current - dt * 0.065
+    );
+    topSettleImpactRef.current = Math.max(
+      0,
+      topSettleImpactRef.current - dt * 0.05
+    );
+    previousTopRippleProgressRef.current = topRippleProgressRef.current;
     previousBeatInstantRef.current = beatInstant;
 
     sourceFlashRef.current = Math.max(sourceFlashRef.current - dt * 2.45, beatInstant);
@@ -1454,6 +1756,14 @@ export default function PulseScene({ bridge }: Props) {
     orbTopRippleMaterial.uniforms.uPulse.value = orbResponse;
     orbTopRippleMaterial.uniforms.uPulseTravel.value = topRippleProgressRef.current;
     orbTopRippleMaterial.uniforms.uImpact.value = topRippleImpactRef.current;
+    orbTopRippleMaterial.uniforms.uPlopProgress.value = topPlopProgressRef.current;
+    orbTopRippleMaterial.uniforms.uPlopImpact.value = topPlopImpactRef.current;
+    orbTopRippleMaterial.uniforms.uCarryProgress.value = topRippleCarryProgressRef.current;
+    orbTopRippleMaterial.uniforms.uCarryImpact.value = topRippleCarryImpactRef.current;
+    orbTopRippleMaterial.uniforms.uEdgeMemoryProgress.value = topEdgeMemoryProgressRef.current;
+    orbTopRippleMaterial.uniforms.uEdgeMemory.value = topEdgeMemoryImpactRef.current;
+    orbTopRippleMaterial.uniforms.uSettleProgress.value = topSettleProgressRef.current;
+    orbTopRippleMaterial.uniforms.uSettleImpact.value = topSettleImpactRef.current;
     orbTopRippleMaterial.uniforms.uBreath.value = breathFill + inhale * 0.45 - exhale * 0.18;
     orbTopRippleMaterial.uniforms.uFlow.value = breathVelocity;
     orbTopRippleMaterial.uniforms.uTime.value = t;
@@ -1795,6 +2105,3 @@ export default function PulseScene({ bridge }: Props) {
     </>
   );
 }
-
-
-/// commit here
